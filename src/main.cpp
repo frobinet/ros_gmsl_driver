@@ -76,7 +76,6 @@ typedef std::chrono::time_point<myclock_t> timepoint_t;
 
 timepoint_t m_lastRunIterationTime;
 
-
 ProgramArguments g_arguments(
     {
         ProgramArguments::Option_t("type-ab", "ar0231-rccb"),
@@ -143,8 +142,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
     int32_t pool_size = 2;
 
     uint32_t numFramesRGBA = pool_size*cameraSensor->numSiblings;
-	
-	
+		
     bool eof;
     // RGBA image pool for conversion from YUV camera output
     // two RGBA frames per camera per sibling for a pool
@@ -211,7 +209,6 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                  cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbaPool.empty();
                  cameraIdx++) {
 
-
                 // capture, convert to rgba and return it
                 eof = captureCamera(cameraSensor->rgbaPool.front(),
                                     cameraSensor->sensor, cameraIdx,
@@ -222,7 +219,8 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                 if (!eof) {
                     cameraSensor->rgbaPool.push(g_frameRGBAPtr[port][cameraIdx]);
                 }
-
+				// Time
+				
                 eofAny |= eof;
             }
         }
@@ -307,7 +305,7 @@ int main(int argc, const char **argv)
         exit(-1);
     }
 
-
+	// Allocate Pool Capture -> main rendering threads 
     dwStatus result;
     for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
         std::vector<dwImageNvMedia*> pool;
@@ -323,12 +321,6 @@ int main(int argc, const char **argv)
         displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
         displayImageProperties.planeCount        = 1;
 
-        /* result = dwImageStreamer_initialize(&cameraSensor[csiPort].streamer,
-                                            &displayImageProperties, DW_IMAGE_GL, sdk);
-        if (result != DW_SUCCESS) {
-            std::cerr << "Cannot init image streamer: " << dwGetStatusName(result) << std::endl;
-            g_run = false;
-        } */
     }
 	
 	// Now we will run separate threads for each camera
@@ -360,90 +352,54 @@ int main(int argc, const char **argv)
 	std::cerr << "  Creating ROS NODE" << std::endl;
 	
 	// ROS definitions
-	std::vector<std::vector<OpenCVConnector*>> cv_connectors( cameraSensor.size() , std::vector<OpenCVConnector*>(4));
-	
+	std::vector<OpenCVConnector*> cv_connectors;
 	// ROS: Create a topic
     // Topic naming scheme is port/camera_idx/image
-	for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
+	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
 		for (uint32_t cameraIdx = 0;
-			cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
-			cameraIdx++) {
+			cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
 				const std::string topic = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
-				cv_connectors[csiPort][cameraIdx] = new OpenCVConnector(topic,csiPort,cameraIdx);
+				cv_connectors.push_back(new OpenCVConnector(topic,csiPort,cameraIdx));
 		}
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
+	ros::Rate r(25); // 10 hz
 
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
     // prepared and render it. Since this is a visualization thread it is not necessary to be in synch
     //window->makeCurrent();
     while(g_run && ros::ok() ) {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-        // render
-        int32_t cellIdx = -1;
-        for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
-            for (uint32_t cameraIdx = 0;
-                 cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
-                 cameraIdx++) {
-
-                cellIdx++;
-
+		        
+        for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
+            // for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
+			for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){
                 if (!g_run) {
                     break;
                 }
 				
 				// stop to take screenshot to ROS (will cause a delay)
-				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
-				//cv_connectors[csiPort][cameraIdx]->showFPS();
+				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				//cv_connectors[cameraIdx]->showFPS();
 				
 				// DEBUGING run_time
-				/* if(cameraIdx == 0 && csiPort == 0 ){
+				if(cameraIdx == 0 && csiPort == 0 ){
 					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
 					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
 					m_lastRunIterationTime = myclock_t::now();
-				} */
-								
-/*              result = dwImageStreamer_postNvMedia(g_frameRGBAPtr[csiPort][cameraIdx],
-                                                     cameraSensor[csiPort].streamer);
-                if (result != DW_SUCCESS) {
-                    std::cerr << "Cannot post nvmedia: " << dwGetStatusName(result) << std::endl;
-                    g_run = false;
-                    break;
-                }
-				
-                //Set area
-                dwRect rect;
-                gridCellRect(&rect, g_grid, cellIdx);
-                dwRenderer_setRect(rect, renderer);
-
-                renderFrame(cameraSensor[csiPort].streamer, renderer);
-
-                // return frame which has been lately processed by the streamer
-                dwImageNvMedia *processed = nullptr;
-                result = dwImageStreamer_waitPostedNvMedia(&processed, 60000,
-                                                           cameraSensor[csiPort].streamer);
-                if (result != DW_SUCCESS) {
-                    std::cerr << "Cannot waitpost nvmedia: " << dwGetStatusName(result) << std::endl;
-                    g_run = false;
-                    break;
-                }*/
-				
+				}
             }
         }
 		
 		
-        //window->swapBuffers();
-        CHECK_GL_ERROR();
+         r.sleep();
     }
 
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
         camThreads.at(i).join();
     }
 
-    //window->makeCurrent();
 
     // release used objects in correct order
     dwSAL_release(&sal);
