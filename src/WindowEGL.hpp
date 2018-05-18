@@ -63,6 +63,7 @@ class WindowOffscreenEGL : public WindowBase
     bool resetCurrent() override;
     bool swapBuffers() override;
     void resetContext() override;
+    EGLContext createSharedContext() const override;
 
   protected:
     bool initDrm(const char *name, EGLAttrib *layerAttribs, int &dispWidth, int &dispHeight);

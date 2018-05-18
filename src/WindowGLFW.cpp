@@ -33,13 +33,20 @@
 #include <iostream>
 #include <cstring>
 
-
+#ifdef VIBRANTE
+    #include <GLFW/glfw3native.h>
+    #include <EGL/eglext.h>
+#endif
 
 // -----------------------------------------------------------------------------
-WindowGLFW::WindowGLFW(int width, int height, bool invisible)
+WindowGLFW::WindowGLFW(const char* title, int width, int height, bool invisible)
     : WindowBase(width, height)
-{
- /*   if (glfwInit() == 0) {
+#ifdef VIBRANTE
+    , m_display(EGL_NO_DISPLAY)
+    , m_context(EGL_NO_CONTEXT)
+#endif
+{/*
+    if (glfwInit() == 0) {
         std::cout << "WindowGLFW: Failed initialize GLFW " << std::endl;
         throw std::exception();
     }
@@ -63,7 +70,7 @@ WindowGLFW::WindowGLFW(int width, int height, bool invisible)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 #endif
 
-    m_hWindow = glfwCreateWindow(width, height, "GLFW", NULL, NULL);
+    m_hWindow = glfwCreateWindow(width, height, title, NULL, NULL);
 
     if (!m_hWindow) {
         glfwTerminate();
@@ -114,56 +121,68 @@ WindowGLFW::WindowGLFW(int width, int height, bool invisible)
         WindowGLFW *window = reinterpret_cast<WindowGLFW *>(glfwGetWindowUserPointer(win));
         window->onResizeWindowCallback(width, height);
     });
+
+#ifdef VIBRANTE
+    m_display = glfwGetEGLDisplay();
+    m_context = glfwGetEGLContext(m_hWindow);
+
+    // Get configuration
+    EGLint num_config;
+    eglGetConfigs(m_display, nullptr, 0, &num_config);
+    m_config.reset(new EGLConfig[num_config]);
+    if(eglGetConfigs(m_display, m_config.get(), num_config, &num_config) == EGL_FALSE) {
+        glfwTerminate();
+        std::cout << "WindowGLFW: Failed to get configs" << std::endl;
+        throw std::exception();
+    }
+#endif
 */
 }
 
 // -----------------------------------------------------------------------------
 WindowGLFW::~WindowGLFW(void)
 {
- //   glfwDestroyWindow(m_hWindow);
- //   glfwTerminate();
+    /*glfwDestroyWindow(m_hWindow);
+    glfwTerminate();
+	*/
 }
-
 
 // -----------------------------------------------------------------------------
 EGLDisplay WindowGLFW::getEGLDisplay(void)
 {
-//#ifdef VIBRANTE
-  //  return glfwGetEGLDisplay();
-//#else
-  //  return 0;
-//#endif
+// #ifdef VIBRANTE
+    // return m_display;
+// #else
+    // return 0;
+// #endif
 }
 
 // -----------------------------------------------------------------------------
 EGLContext WindowGLFW::getEGLContext(void)
 {
-//#ifdef VIBRANTE
-  //  return glfwGetEGLContext(m_hWindow);
-//#else
-  //  return 0;
-//#endif
+// #ifdef VIBRANTE
+    // return m_context;
+// #else
+    // return 0;
+// #endif
 }
 
 // -----------------------------------------------------------------------------
 void WindowGLFW::onKeyCallback(int key, int scancode, int action, int mods)
 {
- /*   if (!m_keyPressCallback)
+    /* if (!m_keyPressCallback)
         return;
 
-    (void)mods;
     (void)scancode;
-    (void)action;
 
-    if (action == GLFW_PRESS && mods == 0)
-        m_keyPressCallback(key);
-*/
+    if ((action == GLFW_PRESS || action == GLFW_REPEAT) && mods == 0)
+        m_keyPressCallback(key); */
 }
 
 // -----------------------------------------------------------------------------
 void WindowGLFW::onMouseButtonCallback(int button, int action, int mods)
 {
-/*    (void)mods;
+   /*  (void)mods;
 
     double x, y;
     glfwGetCursorPos(m_hWindow, &x, &y);
@@ -175,47 +194,42 @@ void WindowGLFW::onMouseButtonCallback(int button, int action, int mods)
         if (!m_mouseUpCallback)
             return;
         m_mouseUpCallback(button, (float)x, (float)y);
-    }
-*/
+    } */
 }
 
 // -----------------------------------------------------------------------------
 void WindowGLFW::onMouseMoveCallback(double x, double y)
 {
- /*   if (!m_mouseMoveCallback)
+   /*  if (!m_mouseMoveCallback)
         return;
-    m_mouseMoveCallback((float)x, (float)y);
-*/
+    m_mouseMoveCallback((float)x, (float)y); */
 }
 
 // -----------------------------------------------------------------------------
 void WindowGLFW::onMouseWheelCallback(double dx, double dy)
 {
-/*    if (!m_mouseWheelCallback)
+    /* if (!m_mouseWheelCallback)
         return;
-    m_mouseWheelCallback((float)dx, (float)dy);
-*/
+    m_mouseWheelCallback((float)dx, (float)dy); */
 }
 
 // -----------------------------------------------------------------------------
 void WindowGLFW::onResizeWindowCallback(int width, int height)
 {
- /*   m_width  = width;
+    /* m_width  = width;
     m_height = height;
 
     if (!m_resizeWindowCallback)
         return;
-    m_resizeWindowCallback(width, height);
-*/
+    m_resizeWindowCallback(width, height); */
 }
 
 // -----------------------------------------------------------------------------
 bool WindowGLFW::swapBuffers(void)
 {
- /*   glfwPollEvents();
-    glfwSwapBuffers(m_hWindow);
+    // glfwPollEvents();
+    // glfwSwapBuffers(m_hWindow);
     return true;
-*/
 }
 
 // -----------------------------------------------------------------------------
@@ -224,10 +238,40 @@ void WindowGLFW::resetContext()
 }
 
 // -----------------------------------------------------------------------------
+EGLContext WindowGLFW::createSharedContext() const {
+/* #ifdef VIBRANTE
+    // -----------------------
+    std::cout << "WindowGLFW: create shared EGL context" << std::endl;
+
+    EGLint ctxAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_CONTEXT_OPENGL_ROBUST_ACCESS_EXT, EGL_FALSE,
+        EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_EXT, EGL_NO_RESET_NOTIFICATION_EXT,
+        EGL_NONE, EGL_NONE};
+
+    EGLContext shared = eglCreateContext(m_display, *m_config.get(), m_context, ctxAttribs);
+
+    if (shared == EGL_NO_CONTEXT) {
+        std::cout << "WindowGLFW: Failed to create shared EGL context " << eglGetError() << std::endl;
+        throw std::exception();
+    }
+
+    EGLBoolean status = eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, shared);
+    if (status != EGL_TRUE) {
+        std::cout << "WindowGLFW: Failed to make shared EGL context current: " << eglGetError() << std::endl;
+        throw std::exception();
+    }
+    return shared;
+#else
+ */    return 0;
+// #endif
+}
+
+// -----------------------------------------------------------------------------
 bool WindowGLFW::makeCurrent()
 {
     // Make the window's context current
-   // glfwMakeContextCurrent(m_hWindow);
+    // glfwMakeContextCurrent(m_hWindow);
 
     return true;
 }
@@ -235,7 +279,7 @@ bool WindowGLFW::makeCurrent()
 // -----------------------------------------------------------------------------
 bool WindowGLFW::resetCurrent()
 {
-    //glfwMakeContextCurrent(nullptr);
+    // glfwMakeContextCurrent(nullptr);
 
     return true;
 }
@@ -244,6 +288,6 @@ bool WindowGLFW::resetCurrent()
 bool WindowGLFW::setWindowSize(int width, int height)
 {
     // Set the window size
-    //glfwSetWindowSize(m_hWindow, width, height);
+    // glfwSetWindowSize(m_hWindow, width, height);
     return true;
 }

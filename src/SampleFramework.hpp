@@ -1,16 +1,66 @@
+/////////////////////////////////////////////////////////////////////////////////////////
+// This code contains NVIDIA Confidential Information and is disclosed
+// under the Mutual Non-Disclosure Agreement.
+//
+// Notice
+// ALL NVIDIA DESIGN SPECIFICATIONS AND CODE ("MATERIALS") ARE PROVIDED "AS IS" NVIDIA MAKES
+// NO REPRESENTATIONS, WARRANTIES, EXPRESSED, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO
+// THE MATERIALS, AND EXPRESSLY DISCLAIMS ANY IMPLIED WARRANTIES OF NONINFRINGEMENT,
+// MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+//
+// NVIDIA Corporation assumes no responsibility for the consequences of use of such
+// information or for any infringement of patents or other rights of third parties that may
+// result from its use. No license is granted by implication or otherwise under any patent
+// or patent rights of NVIDIA Corporation. No third party distribution is allowed unless
+// expressly authorized by NVIDIA.  Details are subject to change without notice.
+// This code supersedes and replaces all information previously supplied.
+// NVIDIA Corporation products are not authorized for use as critical
+// components in life support devices or systems without express written approval of
+// NVIDIA Corporation.
+//
+// Copyright (c) 2016 NVIDIA Corporation. All rights reserved.
+//
+// NVIDIA Corporation and its licensors retain all intellectual property and proprietary
+// rights in and to this software and related documentation and any modifications thereto.
+// Any use, reproduction, disclosure or distribution of this software and related
+// documentation without an express license agreement from NVIDIA Corporation is
+// strictly prohibited.
+//
+/////////////////////////////////////////////////////////////////////////////////////////
+
 #ifndef SAMPLES_COMMON_SAMPLEFRAMEWORK_HPP__
 #define SAMPLES_COMMON_SAMPLEFRAMEWORK_HPP__
 
-#include <Checks.hpp>
 
-#include <WindowGLFW.hpp>
+
+
+
+// ######################################################################################
+//
+//  NOTE: This framework is deprecated. Use DriveWorksSample.hpp instead
+//
+// ######################################################################################
+
+
+
+
+
+
+
+
+
+
+
+#include "Checks.hpp"
+
+#include "WindowGLFW.hpp"
 #ifdef VIBRANTE
-#include <WindowEGL.hpp>
+#include "WindowEGL.hpp"
 #else
 #endif
 
-#include <ProgramArguments.hpp>
-#include <ConsoleColor.hpp>
+#include "ProgramArguments.hpp"
+#include "Log.hpp"
 
 #include <signal.h>
 #include <cstring> // for memset
@@ -27,29 +77,15 @@ extern ProgramArguments gArguments;
 extern WindowBase *gWindow;
 extern bool gRun;
 
-/// Specifies a 2D line segment from point a to point b, in floating point coordinates
-typedef struct {
-    dwVector2f a;
-    dwVector2f b;
-} dwLineSegment2Df;
-
 //------------------------------------------------------------------------------
 // Functions
 //------------------------------------------------------------------------------
 
 // signal handling
-//void sig_int_handler(int sig);
+void sig_int_handler(int sig);
 
 // key press event
-//void keyPressCallback(int key);
-
-// draw line segment in 2D
-// Required renderbuffer with the following properties:
-// - Renderbuffer should be initialized with DW_RENDER_PRIM_LINELIST
-// - Expected position format: DW_RENDER_FORMAT_R32G32_FLOAT
-// - Expected position semantic: DW_RENDER_SEMANTIC_POS_XY
-void drawLineSegments(const std::vector<dwLineSegment2Df> &segments,
-                      dwRenderBufferHandle_t renderBuffer, dwRendererHandle_t renderer);
+void keyPressCallback(int key);
 
 // draw box
 // Required renderbuffer with the following properties:

@@ -76,12 +76,17 @@
 #   CUDA_HOST_COMPILATION_CPP (Default ON)
 #   -- Set to OFF for C compilation of host code.
 #
-#   CUDA_HOST_COMPILER (Default CMAKE_C_COMPILER, $(VCInstallDir)/bin for VS)
-#   -- Set the host compiler to be used by nvcc.  Ignored if -ccbin or
-#      --compiler-bindir is already present in the CUDA_NVCC_FLAGS or
-#      CUDA_NVCC_FLAGS_<CONFIG> variables.  For Visual Studio targets
-#      $(VCInstallDir)/bin is a special value that expands out to the path when
-#      the command is run from withing VS.
+#   CUDA_HOST_COMPILER (Default CMAKE_CXX_COMPILER, $(VCInstallDir)/bin for VS)
+#   -- Set the host compiler to be used by nvcc. In case ccache or pynvccache is
+#      used as a host C++ compiler the specified C++ compiler from it's argument
+#      is used. Ignored if -ccbin or --compiler-bindir is already present in the
+#      CUDA_NVCC_FLAGS or CUDA_NVCC_FLAGS_<CONFIG> variables.  For Visual Studio
+#      targets $(VCInstallDir)/bin is a special value that expands out to the
+#      path when the command is run from withing VS.
+#
+#   CUDA_USE_PYNVCCCACHE (Default OFF)
+#   -- Use pynvccache as cuda compilation cache if available and dependencies
+#      are fulfilled. Otherwise fall-back to regular non-cached cuda compilation.
 #
 #   CUDA_NON_PROPAGATED_HOST_FLAGS
 #   -- If CUDA_PROPAGATE_HOST_FLAGS is set to ON, a list of flags which
@@ -139,10 +144,33 @@
 #      properties that adjust compilation flags will not affect code compiled by
 #      nvcc.  Such flags should be modified before calling CUDA_ADD_EXECUTABLE,
 #      CUDA_ADD_LIBRARY or CUDA_WRAP_SRCS.
+#      To keep the dependencies of the object files up to date, you must call
+#      ADD_CUDA_DEPENDENCIES_TARGET() and build that target.
 #
 #   CUDA_ADD_LIBRARY( cuda_target file0 file1 ...
 #                     [STATIC | SHARED | MODULE] [EXCLUDE_FROM_ALL] [OPTIONS ...] )
 #   -- Same as CUDA_ADD_EXECUTABLE except that a library is created.
+#
+#   ADD_CUDA_DEPENDENCIES_TARGET(target_name is_all)
+#   -- creates a custom target that when built will
+#      update all the dependencies of the cuda files added so far.
+#      If is_all is true then the target is added to the ALL group.
+#      This function can be called multiple times, each time it will create a new
+#      target that updates only the deps of the files added since the last call.
+#
+#         This function uses the following variables constructed by CUDA_WRAP_SRCS:
+#           CUDA_DEPENDENCY_SCRIPTS,
+#           CUDA_DEPENDENCY_OUT_FILES,
+#           CUDA_DEPENDENCY_FLAGS,
+#           CUDA_DEPENDENCY_DEPEND_FILES
+#           CUDA_DEPENDENCY_DIRS
+#         They are used to create the custom commands to update dependencies. These
+#         variables have to be empty before the first time CUDA_WRAP_SRCS is called.
+#         The funciton CUDA_RESET_INTERNAL_CACHE() can be used to clear them.
+#
+#   CUDA_RESET_INTERNAL_CACHE()
+#   -- Resets all internal cache variables. Should be called at the end of the main
+#      CMake script.
 #
 #   CUDA_BUILD_CLEAN_TARGET()
 #   -- Creates a convience target that deletes all the dependency files
@@ -385,6 +413,7 @@ macro(CUDA_INCLUDE_NVCC_DEPENDENCIES dependency_file)
   if(NOT EXISTS ${dependency_file})
     file(WRITE ${dependency_file} "#FindCUDA.cmake generated file.  Do not edit.\n")
   endif()
+
   # Always include this file to force CMake to run again next
   # invocation and rebuild the dependencies.
   #message("including dependency_file = ${dependency_file}")
@@ -430,7 +459,6 @@ endmacro()
 # Setup variables' defaults
 ###############################################################################
 ###############################################################################
-
 # Allow the user to specify if the device code is supposed to be 32 or 64 bit.
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(CUDA_64_BIT_DEVICE_CODE_DEFAULT ON)
@@ -439,42 +467,62 @@ else()
 endif()
 option(CUDA_64_BIT_DEVICE_CODE "Compile device code in 64 bit mode" ${CUDA_64_BIT_DEVICE_CODE_DEFAULT})
 
-# Attach the build rule to the source file in VS.  This option
+# Attach the build rule to the source file in VS.
 option(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE "Attach the build rule to the CUDA source file.  Enable only when the CUDA source file is added to at most one target." ON)
 
 # Prints out extra information about the cuda file during compilation
 option(CUDA_BUILD_CUBIN "Generate and parse .cubin files in Device mode." OFF)
 
-# Set whether we are using emulation or device mode.
+# Set whether we are using emulation or device mode
 option(CUDA_BUILD_EMULATION "Build in Emulation mode" OFF)
 
-# Where to put the generated output.
+# Where to put the generated output
 set(CUDA_GENERATED_OUTPUT_DIR "" CACHE PATH "Directory to put all the output files.  If blank it will default to the CMAKE_CURRENT_BINARY_DIR")
 
-# Parse HOST_COMPILATION mode.
+# Parse HOST_COMPILATION mode
 option(CUDA_HOST_COMPILATION_CPP "Generated file extension" ON)
 
 # Extra user settable flags
 set(CUDA_NVCC_FLAGS "" CACHE STRING "Semi-colon delimit multiple arguments.")
 
+# Set HOST_COMPILER
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set(CUDA_HOST_COMPILER "$(VCInstallDir)bin" CACHE FILEPATH "Host side compiler used by NVCC")
 else()
-  # Using cc which is symlink to clang may let NVCC think it is GCC and issue
-  # unhandled -dumpspecs option to clang. Also in case neither
-  # CMAKE_C_COMPILER is defined (project does not use C language) nor
-  # CUDA_HOST_COMPILER is specified manually we should skip -ccbin and let
-  # nvcc use its own default C compiler.
-  if(DEFINED CMAKE_C_COMPILER AND NOT DEFINED CUDA_HOST_COMPILER)
-    get_filename_component(c_compiler_realpath "${CMAKE_C_COMPILER}" ABSOLUTE)
-  else()
-    set(c_compiler_realpath "")
+  # Determine C++ host compiler by inspecting CMAKE_CXX_COMPILER.
+  # In case pynvccache is used as a host C++ compiler cache parse the host compiler from it's argument.
+  if(NOT DEFINED CUDA_HOST_COMPILER)
+    if(DEFINED CMAKE_CXX_COMPILER)
+      if(CMAKE_CXX_COMPILER_ARG1 MATCHES "--nvcccache-compiler=(.+)")
+        get_filename_component(c_compiler_realpath "${CMAKE_MATCH_1}" ABSOLUTE)
+      elseif(CMAKE_CXX_COMPILER MATCHES "ccache")
+        # there are 2 modes in which ccache can be invoked:
+        # /usr/lib/ccache/<compiler> where compiler is a symlink to ccache who will determine which compiler to use
+        # depending on its invokation.
+        # /usr/bin/ccache <compiler> where ccache will redirect the call, we will differenciate between the 2 
+        # by checking the first argument for an empty string
+        if ("${CMAKE_CXX_COMPILER_ARG1}" STREQUAL "")
+            set(c_compiler_realpath "${CMAKE_CXX_COMPILER}")
+        else()
+            get_filename_component(c_compiler_realpath "${CMAKE_CXX_COMPILER_ARG1}" ABSOLUTE)
+        endif()
+      else()
+        get_filename_component(c_compiler_realpath "${CMAKE_CXX_COMPILER}" ABSOLUTE)
+      endif()
+    else()
+      set(c_compiler_realpath "")
+    endif()
+    set(CUDA_HOST_COMPILER "${c_compiler_realpath}" CACHE FILEPATH "Host side compiler used by NVCC")
   endif()
-  set(CUDA_HOST_COMPILER "${c_compiler_realpath}" CACHE FILEPATH "Host side compiler used by NVCC")
 endif()
 
 # Propagate the host flags to the host compiler via -Xcompiler
 option(CUDA_PROPAGATE_HOST_FLAGS "Propagate C/CXX_FLAGS and friends to the host compiler via -Xcompile" ON)
+
+# Use pynvccache cache
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/pynvcccache)
+  option(CUDA_USE_PYNVCCCACHE "Use pynvccache compiler cache" OFF)
+endif()
 
 # Prevent some flags from being propagated
 set(CUDA_NON_PROPAGATED_HOST_FLAGS "" CACHE STRING "Flags which will not be automatically propagated to the host compiler.")
@@ -626,6 +674,33 @@ else()
   string(REGEX REPLACE "([0-9]+)\\.([0-9]+).*" "\\2" CUDA_VERSION_MINOR "${CUDA_VERSION}")
 endif()
 
+if(CUDA_USE_PYNVCCCACHE)
+  set(CUDA_PYNVCCCACHE_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/pynvcccache/nvcccache.py)
+
+  find_package(PythonInterp 3)
+
+  if(NOT PYTHONINTERP_FOUND)
+    message(WARNING "Unable to find python interpreter."
+                    "Deactivating pynvcccache-based caching")
+    set(CUDA_USE_PYNVCCCACHE OFF)
+  else()
+    # Check if nvcccache dependencies are installed
+    execute_process(COMMAND
+                    ${PYTHON_EXECUTABLE} ${CUDA_PYNVCCCACHE_SCRIPT} --help
+                    RESULT_VARIABLE NVCCCACHE_RES
+                    OUTPUT_VARIABLE NVCCCACHE_OUT
+                    ERROR_VARIABLE  NVCCCACHE_ERR
+                    )
+
+    if(${NVCCCACHE_RES})
+      message(WARNING "Unable to run pynvcccache with ${PYTHON_EXECUTABLE}:\n${NVCCCACHE_OUT}${NVCCCACHE_ERR}"
+              "Hint: check correct python version, try installing missing dependencies with\npip3 install --user <module-name>\n"
+              "Deactivating pynvcccache-based caching")
+      set(CUDA_USE_PYNVCCCACHE OFF)
+    endif()
+  endif()
+endif()
+
 # Always set this convenience variable
 set(CUDA_VERSION_STRING "${CUDA_VERSION}")
 
@@ -679,7 +754,7 @@ if(NOT WIN32)
   if(EXISTS /proc/driver/nvidia/version)
     file(READ /proc/driver/nvidia/version nvidia-driver-version-file)
     if(${nvidia-driver-version-file} MATCHES "NVIDIA UNIX.*Kernel Module  ([0123456789]+)\\.[0123456789]+")
-	  set(nvidia-driver-version_FOUND TRUE)
+      set(nvidia-driver-version_FOUND TRUE)
       set(nvidia-driver-version ${CMAKE_MATCH_1})
     endif()
   endif()
@@ -936,6 +1011,7 @@ endmacro()
 cuda_find_helper_file(parse_cubin cmake)
 cuda_find_helper_file(make2cmake cmake)
 cuda_find_helper_file(run_nvcc cmake)
+cuda_find_helper_file(run_nvcc_deps cmake)
 
 ##############################################################################
 # Separate the OPTIONS out from the sources
@@ -1321,13 +1397,12 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
 
       get_filename_component( basename ${file} NAME )
       if( cuda_compile_to_external_module )
-        set(generated_file_path "${cuda_compile_output_dir}")
-        set(generated_file_basename "${cuda_target}_generated_${basename}.${cuda_compile_to_external_module_type}")
+        set(generated_file_basename "gen_${basename}.${cuda_compile_to_external_module_type}")
         set(format_flag "-${cuda_compile_to_external_module_type}")
         file(MAKE_DIRECTORY "${cuda_compile_output_dir}")
       else()
         set(generated_file_path "${cuda_compile_output_dir}/${CMAKE_CFG_INTDIR}")
-        set(generated_file_basename "${cuda_target}_generated_${basename}${generated_extension}")
+        set(generated_file_basename "gen_${basename}${generated_extension}")
         if(CUDA_SEPARABLE_COMPILATION)
           set(format_flag "-dc")
         else()
@@ -1344,6 +1419,7 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
       set(NVCC_generated_dependency_file "${cuda_compile_intermediate_directory}/${generated_file_basename}.NVCC-depend")
       set(generated_cubin_file "${generated_file_path}/${generated_file_basename}.cubin.txt")
       set(custom_target_script "${cuda_compile_intermediate_directory}/${generated_file_basename}.cmake")
+      set(custom_target_deps_script "${cuda_compile_intermediate_directory}/${generated_file_basename}_deps.cmake")
 
       # Setup properties for obj files:
       if( NOT cuda_compile_to_external_module )
@@ -1386,6 +1462,9 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
       # Configure the build script
       configure_file("${CUDA_run_nvcc}" "${custom_target_script}" @ONLY)
 
+      # Configure the dependencies script
+      configure_file("${CUDA_run_nvcc_deps}" "${custom_target_deps_script}" @ONLY)
+
       # So if a user specifies the same cuda file as input more than once, you
       # can have bad things happen with dependencies.  Here we check an option
       # to see if this is the behavior they want.
@@ -1410,6 +1489,7 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
       else()
         set(cuda_build_comment_string "Building NVCC (${cuda_build_type}) object ${generated_file_relative_path}")
       endif()
+    set(cuda_deps_comment_string "Updating NVCC file dependencies ${generated_file_relative_path}")
 
       # Build the generated file and dependency file ##########################
       add_custom_command(
@@ -1430,6 +1510,26 @@ macro(CUDA_WRAP_SRCS cuda_target format generated_files)
         WORKING_DIRECTORY "${cuda_compile_intermediate_directory}"
         COMMENT "${cuda_build_comment_string}"
         )
+
+      #Store all the info to make the update dependency command
+      # Note: cannot create command here because we want to create a custom target
+      # that depends on all these commands but dependencies only work between targets
+      # and commands created in the same dir.
+      set(ccbin_flags_str "${ccbin_flags}")
+      string(REPLACE ";" "" ccbin_flags_str "${ccbin_flags_str}")
+
+      set(depends_str "${CUDA_NVCC_DEPEND}")
+      string(REPLACE ";" "|" depends_str "${depends_str}")
+      set(depends_str "${source_file}|${custom_target_deps_script}|${depends_str}")
+
+      set(DEP_DIR ${cuda_compile_intermediate_directory})
+
+      set(CUDA_DEPENDENCY_SCRIPTS ${CUDA_DEPENDENCY_SCRIPTS} "${custom_target_deps_script}" CACHE INTERNAL "")
+      set(CUDA_DEPENDENCY_OUT_FILES ${CUDA_DEPENDENCY_OUT_FILES} "${cmake_dependency_file}.stamp" CACHE INTERNAL "")
+      set(CUDA_DEPENDENCY_FLAGS ${CUDA_DEPENDENCY_FLAGS} "${ccbin_flags_str} " CACHE INTERNAL "")
+      set(CUDA_DEPENDENCY_DEPEND_FILES ${CUDA_DEPENDENCY_DEPEND_FILES} "${depends_str}" CACHE INTERNAL "")
+      set(CUDA_DEPENDENCY_COMMANDS ${CUDA_DEPENDENCY_COMMANDS} ${DEP_COMMAND} CACHE INTERNAL "")
+      set(CUDA_DEPENDENCY_DIRS ${CUDA_DEPENDENCY_DIRS} ${DEP_DIR} CACHE INTERNAL "")
 
       # Make sure the build system knows the file is generated.
       set_source_files_properties(${generated_file} PROPERTIES GENERATED TRUE)
@@ -1457,6 +1557,90 @@ function(_cuda_get_important_host_flags important_flags flag_string)
     list(APPEND ${important_flags} ${flags})
   endif()
   set(${important_flags} ${${important_flags}} PARENT_SCOPE)
+endfunction()
+
+###############################################################################
+###############################################################################
+# Create a target to update all cuda dependencies
+###############################################################################
+###############################################################################
+function(ADD_CUDA_DEPENDENCIES_TARGET target_name is_all)
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+      set( CUDA_build_configuration "$(ConfigurationName)" )
+    else()
+      set( CUDA_build_configuration "${CMAKE_BUILD_TYPE}")
+    endif()
+
+    if(CUDA_VERBOSE_BUILD)
+      set(verbose_output ON)
+    elseif(CMAKE_GENERATOR MATCHES "Makefiles")
+      set(verbose_output "$(VERBOSE)")
+    else()
+      set(verbose_output OFF)
+    endif()
+
+    set(all_deps)
+    if(CUDA_DEPENDENCY_OUT_FILES)
+        # Only loop if list not empty
+
+        # Iterate the dependency command list and create a custom command
+        # to update the dependencies of each cuda file
+        list(LENGTH CUDA_DEPENDENCY_OUT_FILES dep_count)
+        math(EXPR dep_count_m "${dep_count}-1")
+
+        foreach(dep_idx RANGE ${dep_count_m})
+            list(GET CUDA_DEPENDENCY_SCRIPTS ${dep_idx} dep_script)
+            list(GET CUDA_DEPENDENCY_OUT_FILES ${dep_idx} out_file)
+            list(GET CUDA_DEPENDENCY_FLAGS ${dep_idx} dep_flags)
+            list(GET CUDA_DEPENDENCY_DEPEND_FILES ${dep_idx} dep_files)
+            list(GET CUDA_DEPENDENCY_DIRS ${dep_idx} dep_dir)
+            string(REPLACE "|" ";" dep_files ${dep_files})
+
+              add_custom_command(
+                OUTPUT ${out_file}
+                DEPENDS ${dep_files}
+                COMMAND ${CMAKE_COMMAND} ARGS
+                   -D verbose:BOOL=${verbose_output}
+                   ${dep_flags}
+                   -D build_configuration:STRING=${CUDA_build_configuration}
+                   -P "${dep_script}"
+                WORKING_DIRECTORY "${dep_dir}"
+                COMMENT "Dependencies for ${out_file}"
+              )
+            set(all_deps ${all_deps} ${out_file})
+        endforeach()
+    endif()
+
+    # Create a final custom target that will update all dependencies
+    if(${is_all})
+        add_custom_target(${target_name} ALL
+            DEPENDS ${all_deps}
+        )
+    else()
+        add_custom_target(${target_name}
+            DEPENDS ${all_deps}
+        )
+    endif()
+
+  # Reset all dependencies
+  unset(CUDA_DEPENDENCY_SCRIPTS CACHE)
+  unset(CUDA_DEPENDENCY_OUT_FILES CACHE)
+  unset(CUDA_DEPENDENCY_FLAGS CACHE)
+  unset(CUDA_DEPENDENCY_DEPEND_FILES CACHE)
+  unset(CUDA_DEPENDENCY_DIRS CACHE)
+endfunction()
+
+function(CUDA_RESET_INTERNAL_CACHE)
+    #check for non-empty vars
+    if(CUDA_DEPENDENCY_OUT_FILES)
+        message(WARNING "Not all cuda files have a target to update its dependencies. \
+                         Call add_cuda_dependencies_target() to create the appropriate target.")
+    endif()
+    unset(CUDA_DEPENDENCY_SCRIPTS CACHE)
+    unset(CUDA_DEPENDENCY_OUT_FILES CACHE)
+    unset(CUDA_DEPENDENCY_FLAGS CACHE)
+    unset(CUDA_DEPENDENCY_DEPEND_FILES CACHE)
+    unset(CUDA_DEPENDENCY_DIRS CACHE)
 endfunction()
 
 ###############################################################################

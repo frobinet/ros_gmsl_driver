@@ -35,10 +35,6 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-#ifndef DRM_MODE_PROP_EXTENDED_TYPE
-#define DRM_MODE_PROP_EXTENDED_TYPE	0x0000ffc0
-#endif
-
 static PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = nullptr;
 static PFNEGLQUERYDEVICESEXTPROC eglQueryDevicesEXT             = nullptr;
 static PFNEGLQUERYDEVICESTRINGEXTPROC eglQueryDeviceStringEXT   = nullptr;
@@ -298,6 +294,36 @@ void WindowOffscreenEGL::resetContext()
             throw std::exception();
         }
     }
+}
+
+// -----------------------------------------------------------------------------
+EGLContext WindowOffscreenEGL::createSharedContext() const {
+#ifdef VIBRANTE
+    // -----------------------
+    std::cout << "WindowEGL: create shared EGL context" << std::endl;
+
+    EGLint ctxAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_CONTEXT_OPENGL_ROBUST_ACCESS_EXT, EGL_FALSE,
+        EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_EXT, EGL_NO_RESET_NOTIFICATION_EXT,
+        EGL_NONE, EGL_NONE};
+
+    EGLContext shared = eglCreateContext(m_display, m_config, m_context, ctxAttribs);
+
+    if (shared == EGL_NO_CONTEXT) {
+        std::cout << "WindowEGL: Failed to create shared EGL context" << eglGetError() << std::endl;
+        throw std::exception();
+    }
+
+    EGLBoolean status = eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, shared);
+    if (status != EGL_TRUE) {
+        std::cout << "WindowEGL: Failed to make shared EGL context current: " << eglGetError() << std::endl;
+        throw std::exception();
+    }
+    return shared;
+#else
+    return 0;
+#endif
 }
 
 // -----------------------------------------------------------------------------

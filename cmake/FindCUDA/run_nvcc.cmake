@@ -84,6 +84,10 @@ endif()
 # been chosen by FindCUDA.cmake.
 @CUDA_HOST_FLAGS@
 
+set(CUDA_USE_PYNVCCCACHE "@CUDA_USE_PYNVCCCACHE@")
+set(CUDA_PYNVCCCACHE_SCRIPT "@CUDA_PYNVCCCACHE_SCRIPT@")
+set(PYTHON_EXECUTABLE "@PYTHON_EXECUTABLE@")
+
 # Take the compiler flags and package them up to be sent to the compiler via -Xcompiler
 set(nvcc_host_compiler_flags "")
 # If we weren't given a build_configuration, use Debug.
@@ -158,85 +162,21 @@ cuda_execute_process(
   COMMAND "${CMAKE_COMMAND}" -E remove "${generated_file}"
   )
 
-# For CUDA 2.3 and below, -G -M doesn't work, so remove the -G flag
-# for dependency generation and hope for the best.
-set(depends_CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}")
 set(CUDA_VERSION @CUDA_VERSION@)
-if(CUDA_VERSION VERSION_LESS "3.0")
-  cmake_policy(PUSH)
-  # CMake policy 0007 NEW states that empty list elements are not
-  # ignored.  I'm just setting it to avoid the warning that's printed.
-  cmake_policy(SET CMP0007 NEW)
-  # Note that this will remove all occurances of -G.
-  list(REMOVE_ITEM depends_CUDA_NVCC_FLAGS "-G")
-  cmake_policy(POP)
-endif()
-
-# nvcc doesn't define __CUDACC__ for some reason when generating dependency files.  This
-# can cause incorrect dependencies when #including files based on this macro which is
-# defined in the generating passes of nvcc invokation.  We will go ahead and manually
-# define this for now until a future version fixes this bug.
-set(CUDACC_DEFINE -D__CUDACC__)
-
-# Generate the dependency file
-cuda_execute_process(
-  "Generating dependency file: ${NVCC_generated_dependency_file}"
-  COMMAND "${CUDA_NVCC_EXECUTABLE}"
-  -M
-  ${CUDACC_DEFINE}
-  "${source_file}"
-  -o "${NVCC_generated_dependency_file}"
-  ${CCBIN}
-  ${nvcc_flags}
-  ${nvcc_host_compiler_flags}
-  ${depends_CUDA_NVCC_FLAGS}
-  -DNVCC
-  ${CUDA_NVCC_INCLUDE_ARGS}
-  )
-
-if(CUDA_result)
-  message(FATAL_ERROR "Error generating ${generated_file}")
-endif()
-
-# Generate the cmake readable dependency file to a temp file.  Don't put the
-# quotes just around the filenames for the input_file and output_file variables.
-# CMake will pass the quotes through and not be able to find the file.
-cuda_execute_process(
-  "Generating temporary cmake readable file: ${cmake_dependency_file}.tmp"
-  COMMAND "${CMAKE_COMMAND}"
-  -D "input_file:FILEPATH=${NVCC_generated_dependency_file}"
-  -D "output_file:FILEPATH=${cmake_dependency_file}.tmp"
-  -P "${CUDA_make2cmake}"
-  )
-
-if(CUDA_result)
-  message(FATAL_ERROR "Error generating ${generated_file}")
-endif()
-
-# Copy the file if it is different
-cuda_execute_process(
-  "Copy if different ${cmake_dependency_file}.tmp to ${cmake_dependency_file}"
-  COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${cmake_dependency_file}.tmp" "${cmake_dependency_file}"
-  )
-
-if(CUDA_result)
-  message(FATAL_ERROR "Error generating ${generated_file}")
-endif()
-
-# Delete the temporary file
-cuda_execute_process(
-  "Removing ${cmake_dependency_file}.tmp and ${NVCC_generated_dependency_file}"
-  COMMAND "${CMAKE_COMMAND}" -E remove "${cmake_dependency_file}.tmp" "${NVCC_generated_dependency_file}"
-  )
-
-if(CUDA_result)
-  message(FATAL_ERROR "Error generating ${generated_file}")
-endif()
 
 # Generate the code
+if(CUDA_USE_PYNVCCCACHE)
+    set(compile_command ${PYTHON_EXECUTABLE})
+    set(compile_cache_args "${CUDA_PYNVCCCACHE_SCRIPT};--nvcccache-compiler=${CUDA_NVCC_EXECUTABLE}")
+else()
+    set(compile_command ${CUDA_NVCC_EXECUTABLE})
+    set(compile_cache_args "")
+endif()
+
 cuda_execute_process(
   "Generating ${generated_file}"
-  COMMAND "${CUDA_NVCC_EXECUTABLE}"
+  COMMAND ${compile_command}
+  ${compile_cache_args}
   "${source_file}"
   ${format_flag} -o "${generated_file}"
   ${CCBIN}
@@ -265,7 +205,8 @@ if( build_cubin )
   # Run with -cubin to produce resource usage report.
   cuda_execute_process(
     "Generating ${generated_cubin_file}"
-    COMMAND "${CUDA_NVCC_EXECUTABLE}"
+    COMMAND ${compile_command}
+    ${compile_cache_args}
     "${source_file}"
     ${CUDA_NVCC_FLAGS}
     ${nvcc_flags}

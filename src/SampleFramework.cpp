@@ -1,10 +1,40 @@
+/////////////////////////////////////////////////////////////////////////////////////////
+// This code contains NVIDIA Confidential Information and is disclosed
+// under the Mutual Non-Disclosure Agreement.
+//
+// Notice
+// ALL NVIDIA DESIGN SPECIFICATIONS AND CODE ("MATERIALS") ARE PROVIDED "AS IS" NVIDIA MAKES
+// NO REPRESENTATIONS, WARRANTIES, EXPRESSED, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO
+// THE MATERIALS, AND EXPRESSLY DISCLAIMS ANY IMPLIED WARRANTIES OF NONINFRINGEMENT,
+// MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+//
+// NVIDIA Corporation assumes no responsibility for the consequences of use of such
+// information or for any infringement of patents or other rights of third parties that may
+// result from its use. No license is granted by implication or otherwise under any patent
+// or patent rights of NVIDIA Corporation. No third party distribution is allowed unless
+// expressly authorized by NVIDIA.  Details are subject to change without notice.
+// This code supersedes and replaces all information previously supplied.
+// NVIDIA Corporation products are not authorized for use as critical
+// components in life support devices or systems without express written approval of
+// NVIDIA Corporation.
+//
+// Copyright (c) 2016 NVIDIA Corporation. All rights reserved.
+//
+// NVIDIA Corporation and its licensors retain all intellectual property and proprietary
+// rights in and to this software and related documentation and any modifications thereto.
+// Any use, reproduction, disclosure or distribution of this software and related
+// documentation without an express license agreement from NVIDIA Corporation is
+// strictly prohibited.
+//
+/////////////////////////////////////////////////////////////////////////////////////////
+
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 
 #include <signal.h>
 #include <cstring> // for memset
 #include <iostream>
 
-#include <SampleFramework.hpp>
+#include "SampleFramework.hpp"
 
 void (*gUserKeyPressCallback)(int) = 0;
 ProgramArguments gArguments;
@@ -28,40 +58,6 @@ void keyPressCallback(int key)
     {
         gUserKeyPressCallback(key);
     }
-}
-
-void drawLineSegments(const std::vector<dwLineSegment2Df> &segments,
-                      dwRenderBufferHandle_t renderBuffer, dwRendererHandle_t renderer)
-{
-    float32_t* coords = nullptr;
-    uint32_t maxVertices = 0;
-    uint32_t vertexStride = 0;
-    dwRenderBuffer_map(&coords, &maxVertices, &vertexStride, renderBuffer);
-
-    dwRect screenRectangle;
-    dwRenderer_getRect(&screenRectangle, renderer);
-
-    for (uint32_t i = 0U; i < segments.size(); ++i)
-    {
-        // transform pixel coords into rendered rectangle
-        float32_t x_start = static_cast<float32_t>(segments[i].a.x) - 0.5f;
-        float32_t y_start = static_cast<float32_t>(segments[i].a.y) - 0.5f;
-        float32_t x_end   = static_cast<float32_t>(segments[i].b.x) - 0.5f;
-        float32_t y_end   = static_cast<float32_t>(segments[i].b.y) - 0.5f;
-
-        coords[0] = x_start;
-        coords[1] = y_start;
-        coords += vertexStride;
-
-        coords[0] = x_end;
-        coords[1] = y_end;
-        coords += vertexStride;
-    }
-
-    dwRenderBuffer_unmap(static_cast<uint32_t>(segments.size() * 2), renderBuffer);
-
-    dwRenderer_renderBuffer(renderBuffer, renderer);
-
 }
 
 void drawBoxes(const std::vector<dwBox2D> &boxes, const std::vector<uint32_t> *boxIds,
@@ -266,26 +262,11 @@ bool initSampleApp( int argc, const char **argv,
     gRun = true;
 
     // Setup Window for Output, initialize the GL and GLFW
-#ifdef VIBRANTE
-    bool offscreen = false;
-    if (gArguments.has("offscreen")) {
-        const std::string offscreenString = gArguments.get("offscreen");
-        if (offscreenString.compare("")) {
-            offscreen = std::stoi(offscreenString) ? true : false;
-        }
-    }
-    if (offscreen)
-        gWindow = new WindowOffscreenEGL(width, height);
-#endif
     try {
         gWindow = gWindow ? gWindow : new WindowGLFW(width, height);
     }
     catch (const std::exception &/*ex*/) {
-        #ifdef VIBRANTE
-            gWindow = new WindowOffscreenEGL(width, height);
-        #else
-            gWindow = nullptr;
-        #endif
+        gWindow = nullptr;
     }
 
     if (gWindow == nullptr)

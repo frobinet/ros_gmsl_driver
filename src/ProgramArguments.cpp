@@ -28,29 +28,30 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-#include <ProgramArguments.hpp>
+#include "ProgramArguments.hpp"
 
+#include <sstream>
 #include <string>
 #include <string.h>
+#include <iostream>
 
 std::string ProgramArguments::m_empty("");
 
-ProgramArguments::ProgramArguments(std::initializer_list<Option_t> options)
+ProgramArguments::ProgramArguments(int argc, const char **argv, const std::vector<Option_t>& options, const char* description)
+    : ProgramArguments(options)
 {
-    for (auto &&o : options) {
-        arguments[o.option] = o.default_value;
-        if (o.required)
-            required_arguments.push_back(o.option);
+    if (description) setDescription(description);
+
+    if (!parse(argc, argv))
+    {
+        exit(0);
     }
 }
 
 ProgramArguments::ProgramArguments(const std::vector<Option_t>& options)
 {
     for (auto &&o : options) {
-        if (o.required)
-            required_arguments.push_back(o.option);
-        else
-            arguments[o.option] = o.default_value;
+        arguments.insert({o.option,o});
     }
 }
 
@@ -67,52 +68,46 @@ bool ProgramArguments::parse(const int argc, const char **argv)
         std::string arg   = argv[i];
         std::size_t mnPos = arg.find("--");
 
-        // has --
-        if (mnPos != std::string::npos) {
-            arg = arg.substr(mnPos + 2);
+        // starts with --
+        if (mnPos == 0) {
+            arg = arg.substr(2);
 
             std::string name;
             std::string value;
 
             std::size_t eqPos = arg.find_first_of("=");
-            if (eqPos == std::string::npos || eqPos == 0 || eqPos >= arg.length() - 1) {
-                show_help = true;
-                continue;
-            }
 
             name  = arg.substr(0, eqPos);
             value = arg.substr(eqPos + 1);
 
+            if(name == "help"){
+                show_help = true;
+                break;
+            }
+
             auto option_it = arguments.find(name);
-            if (option_it != arguments.end()) {
-                option_it->second = value;
+            if (option_it == arguments.end())
+            {
+                std::cout << "Unknown option " << name << "\n";
+                show_help = true;
             } else {
-                arguments[name] = value;
+                option_it->second.parsed = true;
+                option_it->second.value = value;
             }
         }
     }
 
-    // Show Help?
-    if (show_help) {
-        if (arguments.size() > 0) {
-            printf("Options:\n%s\n", printList().c_str());
-        }
-        else {
-            printf("Run application without command line arguments.\n");
-        }
-        return false;
-    }
-
     // Check Required Arguments
-    bool hasAllRequiredArguments = true;
     std::vector<std::string> missing_required;
-    for (std::string required_argument : required_arguments) {
-        if (!has(required_argument.c_str())) {
-            missing_required.push_back(required_argument);
-            hasAllRequiredArguments = false;
+    for (auto &option : arguments)
+    {
+        if(option.second.required && option.second.value.empty())
+        {
+            missing_required.push_back(option.second.option);
         }
     }
-    if (!hasAllRequiredArguments) {
+    if (!missing_required.empty())
+    {
         std::string missing_required_message;
         std::string example_usage;
         for (std::string required_argument : missing_required) {
@@ -126,11 +121,22 @@ bool ProgramArguments::parse(const int argc, const char **argv)
         }
         std::string executable = argv[0];
 
-        printf("ProgramArguments: Missing required arguments: %s e.g.\n\t%s %s\n",
-               missing_required_message.c_str(), executable.c_str(), example_usage.c_str());
+        std::cout << "ProgramArguments: Missing required arguments: "
+                  << missing_required_message
+                  << "e.g.\n\t" << executable << example_usage
+                  << "\n";
+
+        show_help = true;
     }
 
-    return hasAllRequiredArguments;
+    // Show Help?
+    if (show_help)
+    {
+        printHelp();
+        return false;
+    }
+
+    return true;
 }
 
 const std::string &ProgramArguments::get(const char *name) const
@@ -140,7 +146,7 @@ const std::string &ProgramArguments::get(const char *name) const
         printf("ProgramArguments: Missing argument '%s' requested\n", name);
         return ProgramArguments::m_empty;
     } else
-        return it->second;
+        return it->second.value;
 }
 
 bool ProgramArguments::has(const char *name) const
@@ -149,53 +155,88 @@ bool ProgramArguments::has(const char *name) const
     if( it == arguments.end() )
         return false;
 
-    return it->second.length() > 0;
+    return !it->second.value.empty();
+}
+
+bool ProgramArguments::enabled(const char *name) const
+{
+    if (!has(name)) return false;
+    return (get(name) == "1" || get(name) == "true");
 }
 
 void ProgramArguments::addOption(const Option_t &newOption)
 {
-    if (has(newOption.option.c_str()))
+    auto it = arguments.insert({newOption.option, newOption});
+    if(!it.second)
         throw std::runtime_error(std::string("ProgramArguments already contains the new option: ") + newOption.option);
-
-    arguments[newOption.option] = newOption.default_value;
-    if (newOption.required)
-        required_arguments.push_back(newOption.option);
 }
 
 void ProgramArguments::set(const char *option, const char *value)
 {
-    arguments[option] = value;
+    auto it = arguments.find(option);
+    if(it==arguments.end())
+        throw std::runtime_error(std::string("ProgramArguments: tried to set an option that doesn't exist. ") + option);
+    it->second.value = value;
+}
+
+void ProgramArguments::setDescription(const char *description)
+{
+    m_description = description;
 }
 
 
-std::string ProgramArguments::printList() const
+void ProgramArguments::printHelp() const
 {
-    std::string list;
-
-    for (auto arg : arguments) {
-        list.append("--");
-        list.append(arg.first);
-        list.append("=");
-        list.append(arg.second);
-        list.append("\n");
+    if (arguments.empty())
+    {
+        std::cout << "Run application without command line arguments.\n";
+        return;
     }
 
-    return list;
+    if (!m_description.empty())
+        std::cout << m_description << std::endl;
+
+    std::stringstream ss;
+
+    for (auto &arg : arguments)
+    {
+        auto &option = arg.second;
+        ss << "--" << option.option << ": ";
+        if(option.required)
+            ss << "required, ";
+        ss << "default=" << option.default_value;
+        if(!option.help.empty())
+            ss << "\n    " << option.help;
+        ss << "\n";
+    }
+
+    std::cout << ss.str();
+}
+
+std::string ProgramArguments::printList() const
+{
+    std::stringstream ss;
+
+    for (auto &arg : arguments)
+    {
+        auto &option = arg.second;
+        ss << "--" << option.option << "=" << option.value << "\n";
+    }
+
+    return ss.str();
 }
 
 std::string ProgramArguments::parameterString() const
 {
-    std::string list;
+    std::stringstream list;
 
     bool first = true;
     for (auto arg : arguments) {
         if (!first)
-            list.append(",");
-        list.append(arg.first);
-        list.append("=");
-        list.append(arg.second);
+            list << ",";
+        list << arg.first << "=" << arg.second.value;
         first = false;
     }
 
-    return list;
+    return list.str();
 }

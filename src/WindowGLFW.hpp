@@ -37,8 +37,11 @@
     #define GLFW_INCLUDE_ES3
     #define GLFW_EXPOSE_NATIVE_X11
     #define GLFW_EXPOSE_NATIVE_EGL
+    #include <EGL/egl.h>
 #endif
+
 #include <GLFW/glfw3.h>
+#include <memory>
 
 class WindowGLFW : public WindowBase
 {
@@ -46,31 +49,36 @@ class WindowGLFW : public WindowBase
     // create an X11 window
     //   width: width of window
     //   height: height of window
-    WindowGLFW(int width, int height, bool invisible = false);
+    WindowGLFW(const char* title, int width, int height, bool invisible = false);
+    WindowGLFW(int w, int h, bool invisible = false)
+        : WindowGLFW("DriveWorks", w, h, invisible)
+    {}
 
     // release window
     ~WindowGLFW();
 
     // swap back and front buffers - return false if failed, i.e. window need close
-    bool swapBuffers();
+    bool swapBuffers() override;
 
     // reset EGL context
-    void resetContext();
+    void resetContext() override;
+
+    EGLContext createSharedContext() const override;
 
     // make window context current to the calling thread
-    bool makeCurrent();
+    bool makeCurrent() override;
 
     // remove current window context from the calling thread
-    bool resetCurrent();
+    bool resetCurrent() override;
 
     bool shouldClose() override {return false;/* return glfwWindowShouldClose(m_hWindow) != 0; */}
 
     // Set the window size
-    bool setWindowSize(int width, int height);
+    bool setWindowSize(int width, int height) override;
 
     // get EGL display
-    EGLDisplay getEGLDisplay(void);
-    EGLContext getEGLContext(void);
+    EGLDisplay getEGLDisplay(void) override;
+    EGLContext getEGLContext(void) override;
 
     void onKeyCallback(int key, int scancode, int action, int mods);
     void onMouseButtonCallback(int button, int action, int mods);
@@ -80,6 +88,12 @@ class WindowGLFW : public WindowBase
 
   protected:
     GLFWwindow *m_hWindow;
+
+#ifdef VIBRANTE
+    EGLDisplay m_display;
+    EGLContext m_context;
+    std::unique_ptr<EGLConfig[]> m_config;
+#endif
 };
 
 #endif // SAMPLES_COMMON_WINDOWGLFW_HPP__

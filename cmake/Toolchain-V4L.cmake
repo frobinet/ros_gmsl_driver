@@ -11,8 +11,8 @@ set(CMAKE_FIND_LIBRARY_PREFIXES "lib")
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so")
 
 # check that Vibrante PDK must be set
-if (NOT DEFINED VIBRANTE_PDK)
-    if (DEFINED ENV{VIBRANTE_PDK})
+if(NOT DEFINED VIBRANTE_PDK)
+    if(DEFINED ENV{VIBRANTE_PDK})
         message(STATUS "VIBRANTE_PDK = ENV : $ENV{VIBRANTE_PDK}")
         set(VIBRANTE_PDK $ENV{VIBRANTE_PDK} CACHE STRING "Path to the vibrante-XXX-linux path for cross-compilation" FORCE)
     endif()
@@ -28,8 +28,8 @@ endif()
 
 set(ARCH "aarch64")
 set(VIBRANTE TRUE)
-set(VIBRANTE_V4L TRUE)
-add_definitions(-DVIBRANTE -DVIBRANTE_V4L)
+set(VIBRANTE_V5L TRUE)
+add_definitions(-DVIBRANTE -DVIBRANTE_V5L)
 
 set(TOOLCHAIN "${VIBRANTE_PDK}/../toolchains/tegra-4.9-nv")
 
@@ -47,35 +47,35 @@ set(CMAKE_EXE_LINKER_FLAGS    ""                    CACHE STRING "executable lin
 set(LD_PATH ${VIBRANTE_PDK}/lib-target)
 set(LD_PATH_EXTRA ${VIBRANTE_PDK}/targetfs/lib/aarch64-linux-gnu)
 
-
 # Please, be carefull looks like "-Wl,-unresolved-symbols=ignore-in-shared-libs" can lead to silent "ld" problems
 set(CMAKE_SHARED_LINKER_FLAGS   "-L${LD_PATH} -L${LD_PATH_EXTRA} -Wl,-rpath,${LD_PATH} ${CMAKE_SHARED_LINKER_FLAGS}")
+set(CMAKE_MODULE_LINKER_FLAGS   "-L${LD_PATH} -L${LD_PATH_EXTRA} -Wl,-rpath,${LD_PATH} ${CMAKE_SHARED_LINKER_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS      "-L${LD_PATH} -L${LD_PATH_EXTRA} -Wl,-rpath,${LD_PATH} ${CMAKE_EXE_LINKER_FLAGS}")
 
 # Set cmake root path. If there is no "/usr/local" in CMAKE_FIND_ROOT_PATH then FinCUDA.cmake doesn't work
-SET(CMAKE_FIND_ROOT_PATH ${VIBRANTE_PDK} ${VIBRANTE_PDK}/targetfs/usr/local/ ${VIBRANTE_PDK}/targetfs/ /usr/local)
+set(CMAKE_FIND_ROOT_PATH ${VIBRANTE_PDK} ${VIBRANTE_PDK}/targetfs/usr/local/ ${VIBRANTE_PDK}/targetfs/ /usr/local)
 
 # search for programs in the build host directories
-SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
 # for libraries and headers in the target directories
-SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
 # set system default include dir
 include_directories(BEFORE SYSTEM ${VIBRANTE_PDK}/include)
 
 # determine target device and pdk branch
-if (NOT DEFINED VIBRANTE_PDK_DEVICE AND VIBRANTE_PDK)
-    if(${VIBRANTE_PDK} MATCHES "vibrante-(.+)-linux")
-        set(VIBRANTE_PDK_DEVICE ${CMAKE_MATCH_1} CACHE STRING "Cross-compilation target device")
+if(NOT DEFINED VIBRANTE_PDK_DEVICE AND VIBRANTE_PDK)
+    if(${VIBRANTE_PDK} MATCHES "(vibrante|drive)-(t.+)-linux$")
+        set(VIBRANTE_PDK_DEVICE ${CMAKE_MATCH_2} CACHE STRING "Cross-compilation target device")
         message(STATUS "VIBRANTE_PDK_DEVICE = ${VIBRANTE_PDK_DEVICE}")
     else()
         message(FATAL_ERROR "Can't determine target device for PDK: ${VIBRANTE_PDK}")
     endif()
 endif()
 
-if (NOT DEFINED VIBRANTE_PDK_BRANCH AND VIBRANTE_PDK)
+if(NOT DEFINED VIBRANTE_PDK_BRANCH AND VIBRANTE_PDK)
     if(EXISTS "${VIBRANTE_PDK}/lib-target/version-nv-pdk.txt")
         set(VIBRANTE_PDK_FILE "${VIBRANTE_PDK}/lib-target/version-nv-pdk.txt")
     elseif(EXISTS "${VIBRANTE_PDK}/lib-target/version-nv-sdk.txt")
@@ -95,7 +95,7 @@ if (NOT DEFINED VIBRANTE_PDK_BRANCH AND VIBRANTE_PDK)
     endif()
 endif()
 
-if (DEFINED VIBRANTE_PDK_BRANCH)
+if(DEFINED VIBRANTE_PDK_BRANCH)
   string(REPLACE "." ";" PDK_VERSION_LIST ${VIBRANTE_PDK_BRANCH})
 
   # Some PDK's have less than three version numbers. Pad the list so we always
@@ -114,16 +114,21 @@ if (DEFINED VIBRANTE_PDK_BRANCH)
 
   list(GET PDK_VERSION_LIST 0 VIBRANTE_PDK_MAJOR)
   list(GET PDK_VERSION_LIST 1 VIBRANTE_PDK_MINOR)
-  if (PDK_VERSION_LIST_LENGTH GREATER 2)
+  if(PDK_VERSION_LIST_LENGTH GREATER 2)
     list(GET PDK_VERSION_LIST 2 VIBRANTE_PDK_PATCH)
   endif()
 
-  if (PDK_VERSION_LIST_LENGTH GREATER 3)
+  if(PDK_VERSION_LIST_LENGTH GREATER 3)
     list(GET PDK_VERSION_LIST 3 VIBRANTE_PDK_BUILD)
   endif()
 
+  set(VIBRANTE_PDK_VERSION ${VIBRANTE_PDK_MAJOR}.${VIBRANTE_PDK_MINOR}.${VIBRANTE_PDK_PATCH}.${VIBRANTE_PDK_BUILD})
+
+  add_definitions(-DVIBRANTE_PDK_VERSION=\"${VIBRANTE_PDK_VERSION}\") # requires escaping so it is treated as a string 
+                                                                      # and not an invalid floating point with too many decimal points
   add_definitions(-DVIBRANTE_PDK_MAJOR=${VIBRANTE_PDK_MAJOR})
   add_definitions(-DVIBRANTE_PDK_MINOR=${VIBRANTE_PDK_MINOR})
   add_definitions(-DVIBRANTE_PDK_PATCH=${VIBRANTE_PDK_PATCH})
   add_definitions(-DVIBRANTE_PDK_BUILD=${VIBRANTE_PDK_BUILD})
+  message(STATUS "Vibrante version ${VIBRANTE_PDK_VERSION}")
 endif()

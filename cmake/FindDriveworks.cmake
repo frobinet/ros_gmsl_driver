@@ -7,11 +7,11 @@
 #  Driveworks_INCLUDE_DIRS - the Driveworks include directories
 #  Driveworks_LIBRARIES - link these to use Driveworks
 
-#include(LibFindMacros)
-#include(ArchConfiguration)
+include(LibFindMacros)
+include(ArchConfiguration)
 
 # Use pkg-config to get hints about paths
-#libfind_pkg_check_modules(Driveworks_PKGCONF driveworks)
+libfind_pkg_check_modules(Driveworks_PKGCONF driveworks)
 
 # Use provided driveworks location hints
 if(DRIVEWORKS)
@@ -64,4 +64,4 @@ endif()
 # NOTE: Singular variables for this library, plural for libraries this this lib depends on.
 set(Driveworks_PROCESS_INCLUDES Driveworks_INCLUDE_DIR)
 set(Driveworks_PROCESS_LIBS Driveworks_LIBRARY)
-#libfind_process(Driveworks)
+libfind_process(Driveworks)

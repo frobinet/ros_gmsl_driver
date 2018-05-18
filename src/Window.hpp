@@ -72,6 +72,9 @@ class WindowBase
     // reset EGL context
     virtual void resetContext() = 0;
 
+    // create shared EGL context for the calling thread
+    virtual EGLContext createSharedContext() const = 0;
+
     // make window context current to the calling thread
     virtual bool makeCurrent() = 0;
 

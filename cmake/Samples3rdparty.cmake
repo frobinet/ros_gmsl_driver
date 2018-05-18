@@ -1,11 +1,11 @@
-# Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2017, NVIDIA CORPORATION.  All rights reserved.
 
 #-------------------------------------------------------------------------------
 # Dependencies
 #-------------------------------------------------------------------------------
-set(glfw3_DIR "/usr/local/driveworks-0.2.1/samples-mod/3rdparty/linux/glfw-3.1.1" CACHE PATH '' FORCE)
-set(glew_DIR "/usr/local/driveworks-0.2.1/samples-mod/3rdparty/linux/glew-1.13.0" CACHE PATH '' FORCE)
-set(lodepng_DIR "/usr/local/driveworks-0.2.1/samples-mod/3rdparty/linux/lodepng-20150912" CACHE PATH '' FORCE)
+set(glfw3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/${SDK_ARCH_DIR}/glfw-3.1.1" CACHE PATH '' FORCE)
+set(glew_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/${SDK_ARCH_DIR}/glew-1.13.0" CACHE PATH '' FORCE)
+set(lodepng_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/${SDK_ARCH_DIR}/lodepng-20150912" CACHE PATH '' FORCE)
 find_package(glfw3 REQUIRED CONFIG)
 find_package(lodepng CONFIG REQUIRED)
 
@@ -14,8 +14,10 @@ if(WINDOWS OR LINUX)
 endif()
 
 if(VIBRANTE)
-    set(vibrante_DIR "/usr/local/driveworks-0.2.1/samples-mod/3rdparty/linux-aarch64/vibrante" CACHE PATH '' FORCE)
+    set(vibrante_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/${SDK_ARCH_DIR}/vibrante" CACHE PATH '' FORCE)
     find_package(vibrante REQUIRED CONFIG)
+    set(vibrante_Xlibs_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/${SDK_ARCH_DIR}/vibrante_Xlibs" CACHE PATH '' FORCE)
+    find_package(vibrante_Xlibs REQUIRED CONFIG)
     find_package(EGL REQUIRED)
     add_definitions(-DDW_USE_NVMEDIA)
     add_definitions(-DDW_USE_EGL)
@@ -25,4 +27,4 @@ if(VIBRANTE)
 endif()
 
 # Hide settings in default cmake view
-mark_as_advanced(glfw3_DIR glew_DIR lodepng_DIR vibrante_DIR)
+mark_as_advanced(glfw3_DIR glew_DIR lodepng_DIR vibrante_DIR vibrante_Xlibs_DIR)

@@ -50,11 +50,32 @@ class ProgramArguments
 {
   public:
     struct Option_t {
+        Option_t(const char *option_, const char *default_value_, const char *help_)
+        {
+            option        = option_;
+            default_value = default_value_;
+            help          = help_;
+            required      = false;
+            parsed        = false;
+            value         = default_value;
+        }
+        Option_t(const char *option_, std::nullptr_t, const char *help_)
+        {
+            option        = option_;
+            default_value = "";
+            help          = help_;
+            required      = true;
+            parsed        = false;
+            value         = "";
+        }
+
         Option_t(const char *option_, const char *default_value_)
         {
             option        = option_;
             default_value = default_value_;
             required      = false;
+            parsed        = false;
+            value         = default_value;
         }
 
         Option_t(const char *option_)
@@ -62,36 +83,50 @@ class ProgramArguments
             option        = option_;
             default_value = "";
             required      = true;
+            parsed        = false;
         }
 
         std::string option;
         std::string default_value;
+        std::string help;
         bool required;
+
+        bool parsed;
+        std::string value;
     };
 
   public:
     ProgramArguments() {}
-    ProgramArguments(std::initializer_list<Option_t> options);
+    ProgramArguments(int argc, const char **argv, const std::vector<Option_t>& options, const char* description = nullptr);
     ProgramArguments(const std::vector<Option_t>& options);
     ~ProgramArguments();
 
     bool parse(const int argc, const char **argv);
 
     bool has(const char *name) const;
+    bool enabled(const char *name) const;
     void addOption(const Option_t &newOption);
 
     const std::string &get(const char *name) const;
     void set(const char* option, const char* vaule);
 
+    // Will be shown before the help text
+    void setDescription(const char* description);
+
+    /// Displays a message with info about the possible parameters
+    void printHelp() const;
+
+    /// Returns a string with info about the parameter values
     std::string printList() const;
 
+    /// Returns all the parsed parameters as a single string
     std::string parameterString() const;
 
   private:
     static std::string m_empty;
 
-    std::map<std::string, std::string> arguments;
-    std::vector<std::string> required_arguments;
+    std::string m_description = {};
+    std::map<std::string, Option_t> arguments;
 };
 
 #endif // SAMPLES_COMMON_PROGRAMARGUMENTS_HPP__

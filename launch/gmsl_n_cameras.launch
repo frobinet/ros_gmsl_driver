@@ -1,5 +1,6 @@
 <launch>
 
+<arg name="selector-mask" value="1111" />
 <!-- 
      This file launches a node that publishes images from GMSL cameras on a DrivePX2 to rostopics 
      Once running, each camera group has a node running under /camera/<groupidx>.
@@ -9,7 +10,7 @@
      that camera's group number will be used for the next topic
 -->
 
-	<node name="gmsl_n_cameras" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node" args="--selector-mask=$(arg selector-mask)"/> 
+	<node name="gmsl_n_cameras" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"/> 
 
 
 </launch>

@@ -43,6 +43,17 @@ inline void getGLError(int line, const char *file, const char *function)
                                                 + std::string("\n at " __FILE__ ":") + std::to_string(__LINE__)); \
                     };
 
+#define CHECK_DW_ERROR_MSG(x,description) { \
+                    dwStatus result = x; \
+                    if(result!=DW_SUCCESS) \
+                        throw std::runtime_error(std::string("DW Error ") \
+                                                + dwGetStatusName(result) \
+                                                + std::string(" executing DW function:\n " #x) \
+                                                + std::string("\n at " __FILE__ ":") \
+                                                + std::to_string(__LINE__) \
+                                                + std::string(" -> ") + description); \
+                    };
+
 //------------------------------------------------------------------------------
 // macro to easily check for cuda errors
 #define CHECK_CUDA_ERROR(x) { \

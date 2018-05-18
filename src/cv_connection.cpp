@@ -13,14 +13,12 @@
 OpenCVConnector::OpenCVConnector(std::string topic_name) : it(nh), counter(0)	{
    pub = it.advertise(topic_name, 1);
     
-
 }
 
 
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
-
-    
     // create a cv::Mat from a dwImageNvMedia rgbaImage
+    // !#!#!#!#! High processing?
     cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
 
     cv::Mat converted;//=new cv::Mat();
@@ -33,8 +31,10 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
     std_msgs::Header header; // empty header
     header.seq = counter; // user defined counter
     header.stamp = ros::Time::now(); // time
+
+    // !#!#!#!#! High processing?
     img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, converted);
-    img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
+    img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image  !#!#!#!#! High processing
     pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
 
 }

@@ -1,6 +1,14 @@
 # Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
 
 #-------------------------------------------------------------------------------
+# Debug symbols
+#-------------------------------------------------------------------------------
+# Force debug symbols on experimental builds to have stack trace
+if(SDK_BUILD_EXPERIMENTAL AND NOT CMAKE_BUILD_TYPE MATCHES Debug)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+endif()
+
+#-------------------------------------------------------------------------------
 # Enable C++11
 #-------------------------------------------------------------------------------
 if(CMAKE_VERSION VERSION_GREATER 3.1)
