@@ -33,6 +33,10 @@
 #include <cstring>
 #include <thread>
 #include <queue>
+#include <csignal>
+#include <signal.h>
+#include <chrono>
+
 
 #include <lodepng.h>
 
@@ -59,12 +63,19 @@
 #include "cv_connection.hpp"
 
 
+	
 //------------------------------------------------------------------------------
 // Variables
 //------------------------------------------------------------------------------
 static bool volatile g_run = true;
 static bool gTakeScreenshot = false;
 static int gScreenshotCount = 0;
+
+typedef std::chrono::high_resolution_clock myclock_t;
+typedef std::chrono::time_point<myclock_t> timepoint_t;
+
+timepoint_t m_lastRunIterationTime;
+
 
 ProgramArguments g_arguments(
     {
@@ -320,7 +331,7 @@ int main(int argc, const char **argv)
         } */
     }
 	
-	// Now we will run separate threads for each camera, each thread will run it own ROS publisher
+	// Now we will run separate threads for each camera
     std::vector<std::thread> camThreads;
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
         camThreads.push_back(std::thread(threadCameraPipeline, &cameraSensor[i], i, sdk, window));
@@ -358,10 +369,11 @@ int main(int argc, const char **argv)
 			cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
 			cameraIdx++) {
 				const std::string topic = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
-				cv_connectors[csiPort][cameraIdx] = new OpenCVConnector(topic);
+				cv_connectors[csiPort][cameraIdx] = new OpenCVConnector(topic,csiPort,cameraIdx);
 		}
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
+	
 
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
@@ -385,10 +397,16 @@ int main(int argc, const char **argv)
 				
 				// stop to take screenshot to ROS (will cause a delay)
 				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
-				cv_connectors[csiPort][cameraIdx]->showFPS(csiPort, cameraIdx );
+				//cv_connectors[csiPort][cameraIdx]->showFPS();
 				
-/*
-                result = dwImageStreamer_postNvMedia(g_frameRGBAPtr[csiPort][cameraIdx],
+				// DEBUGING run_time
+				/* if(cameraIdx == 0 && csiPort == 0 ){
+					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
+					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
+					m_lastRunIterationTime = myclock_t::now();
+				} */
+								
+/*              result = dwImageStreamer_postNvMedia(g_frameRGBAPtr[csiPort][cameraIdx],
                                                      cameraSensor[csiPort].streamer);
                 if (result != DW_SUCCESS) {
                     std::cerr << "Cannot post nvmedia: " << dwGetStatusName(result) << std::endl;

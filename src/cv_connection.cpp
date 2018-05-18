@@ -13,9 +13,10 @@
 cv_bridge::CvImage img_bridge;
 cv::Mat converted;
 
-OpenCVConnector::OpenCVConnector(std::string topic_name) : it(nh), counter(0)	{
+OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx) : it(nh), counter(0),csiPort(csiPort),cameraIdx(cameraIdx)	{
    pub = it.advertise(topic_name, 1);
    ROStime = ros::Time::now();
+   ROStimemain = ros::Time::now();
 }
 
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
@@ -32,9 +33,12 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
     img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, converted);
     img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image  !#!#!#!#! High processing
     pub.publish(img_msg); // ros::Publisher pub_img = node.advertise<sensor_msgs::Image>("topic", queuesize);
-	counter ++;
+	//counter ++;
+	
+	// std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStimemain.toSec())<<std::endl;
+	// ROStimemain = ros::Time::now();
 }
-void OpenCVConnector::showFPS(size_t csiPort,uint32_t cameraIdx) {
+void OpenCVConnector::showFPS() {
 	std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStime.toSec())<<std::endl;
 	ROStime = ros::Time::now();
 }

@@ -20,12 +20,16 @@ public:
 	image_transport::Publisher pub;
 	std::string topic_name;
 	ros::Time ROStime;
+	ros::Time ROStimemain;
 	unsigned int counter;
+	size_t csiPort;
+	uint32_t cameraIdx;
 	
 	// Methods 
-	OpenCVConnector(std::string topic_name);
+	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
+
 	~OpenCVConnector();
-	virtual void showFPS(size_t csiPort,uint32_t cameraIdx );
+	virtual void showFPS();
 	
 	void WriteToOpenCV(unsigned char*, int, int);
 };
