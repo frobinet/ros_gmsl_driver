@@ -10,18 +10,24 @@
 class OpenCVConnector {
 
 public:
-   OpenCVConnector(std::string topic_name);
-
-   void WriteToOpenCV(unsigned char*, int, int);
-
-
-   ros::NodeHandle nh;
-   image_transport::ImageTransport it;
-   image_transport::Publisher pub;
-   std::string topic_name;
-
-   unsigned int counter;
-
+	// Variables
+	
+    sensor_msgs::Image img_msg; // >> message to be sent
+	std_msgs::Header header; // empty header
+	
+	ros::NodeHandle nh;
+	image_transport::ImageTransport it;
+	image_transport::Publisher pub;
+	std::string topic_name;
+	ros::Time ROStime;
+	unsigned int counter;
+	
+	// Methods 
+	OpenCVConnector(std::string topic_name);
+	~OpenCVConnector();
+	virtual void showFPS(size_t csiPort,uint32_t cameraIdx );
+	
+	void WriteToOpenCV(unsigned char*, int, int);
 };
 
 

@@ -347,12 +347,13 @@ int main(int argc, const char **argv)
     int argc2 = 0; char** argv2 = nullptr;
     ros::init(argc2, argv2, "image_publisher");
 	std::cerr << "  Creating ROS NODE" << std::endl;
-
+	ros::Rate loop_rate(30);
+	
 	// ROS definitions
 	std::vector<std::vector<OpenCVConnector*>> cv_connectors( cameraSensor.size() , std::vector<OpenCVConnector*>(4));
-
-	// ROS: Create a topic and anode for each camera attached to each CSI port
-    // Topic naming scheme is port/neighbor_idx/image
+	
+	// ROS: Create a topic
+    // Topic naming scheme is port/camera_idx/image
 	for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
 		for (uint32_t cameraIdx = 0;
 			cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
@@ -372,7 +373,6 @@ int main(int argc, const char **argv)
 		
         // render
         int32_t cellIdx = -1;
-		
         for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
             for (uint32_t cameraIdx = 0;
                  cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
@@ -386,6 +386,7 @@ int main(int argc, const char **argv)
 				
 				// stop to take screenshot to ROS (will cause a delay)
 				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
+				cv_connectors[csiPort][cameraIdx]->showFPS(csiPort, cameraIdx );
 				
 /*
                 result = dwImageStreamer_postNvMedia(g_frameRGBAPtr[csiPort][cameraIdx],
