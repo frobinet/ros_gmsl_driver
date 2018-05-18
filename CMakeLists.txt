@@ -11,7 +11,7 @@ set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(glfw_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/glfw-3.1.1/include)
 set(glfw_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/glfw-3.1.1/lib)
-set(drive_t186ref_linux_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/drive-t186ref-linux/include)
+set(drive_t186ref_linux_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/drive-t186ref-linux/include)
 set(lodepng_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng-20150912/include)
 set(lodepng_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng-20150912/lib)
 
@@ -64,7 +64,6 @@ add_executable(${NODE_NAME} src/main.cpp
   src/WindowGLFW.cpp  
   src/cv_connection.cpp
   src/SampleFramework.cpp
-  #src/Grid.cpp
   src/Log.cpp
 )
 
@@ -76,7 +75,6 @@ target_link_libraries(${NODE_NAME}
   GLESv2
   EGL
   drm
-  #glfw3
   ${CUDA_LIBRARY}
   ${OpenCV_LIBS} 
 )
