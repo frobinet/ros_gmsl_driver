@@ -320,6 +320,30 @@ int main(int argc, const char **argv)
         } */
     }
 	
+	
+	
+	// ROS definitions
+    int argc2 = 0; char** argv2 = nullptr;
+    ros::init(argc2, argv2, "image_publisher");
+	std::cerr << "  Creating ROS NODE" << std::endl;
+	
+	// ROS definitions
+	std::vector<std::vector<OpenCVConnector*>> cv_connectors( cameraSensor.size() , std::vector<OpenCVConnector*>(4));
+	
+	// ROS: Create a topic
+    // Topic naming scheme is port/camera_idx/image
+	for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
+		for (uint32_t cameraIdx = 0;
+			cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
+			cameraIdx++) {
+				const std::string topic = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
+				cv_connectors[csiPort][cameraIdx] = new OpenCVConnector(topic);
+		}
+	}
+	std::cerr << "  Creating ROS publishers" << std::endl;
+	
+	
+	
 	// Now we will run separate threads for each camera, each thread will run it own ROS publisher
     std::vector<std::thread> camThreads;
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
@@ -343,28 +367,7 @@ int main(int argc, const char **argv)
         }
     }
 	
-	// ROS definitions
-    int argc2 = 0; char** argv2 = nullptr;
-    ros::init(argc2, argv2, "image_publisher");
-	std::cerr << "  Creating ROS NODE" << std::endl;
-	ros::Rate loop_rate(30);
-	
-	// ROS definitions
-	std::vector<std::vector<OpenCVConnector*>> cv_connectors( cameraSensor.size() , std::vector<OpenCVConnector*>(4));
-	
-	// ROS: Create a topic
-    // Topic naming scheme is port/camera_idx/image
-	for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
-		for (uint32_t cameraIdx = 0;
-			cameraIdx < cameraSensor[csiPort].numSiblings && !cameraSensor[csiPort].rgbaPool.empty()  && g_run;
-			cameraIdx++) {
-				const std::string topic = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
-				cv_connectors[csiPort][cameraIdx] = new OpenCVConnector(topic);
-		}
-	}
-	std::cerr << "  Creating ROS publishers" << std::endl;
-
-    // all cameras have provided at least one frame, this thread can now start rendering
+	// all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
     // prepared and render it. Since this is a visualization thread it is not necessary to be in synch
     //window->makeCurrent();
