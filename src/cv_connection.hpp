@@ -12,7 +12,8 @@ class OpenCVConnector {
 public:
 	// Variables
 	
-    sensor_msgs::Image img_msg; // >> message to be sent
+    //sensor_msgs::Image img_msg; // >> message to be sent
+	sensor_msgs::ImagePtr * img_msg;
 	std_msgs::Header header; // empty header
 	
 	ros::NodeHandle nh;

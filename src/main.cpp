@@ -239,7 +239,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
         }
 
         // computation
-        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
         g_run = g_run && !eofAny;
     }
@@ -364,7 +364,7 @@ int main(int argc, const char **argv)
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
-	ros::Rate r(25); // 10 hz
+	ros::Rate r(15); // ? hz
 
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
@@ -384,15 +384,14 @@ int main(int argc, const char **argv)
 				//cv_connectors[cameraIdx]->showFPS();
 				
 				// DEBUGING run_time
-				if(cameraIdx == 0 && csiPort == 0 ){
+				/* if(cameraIdx == 0 && csiPort == 0 ){
 					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
 					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
 					m_lastRunIterationTime = myclock_t::now();
-				}
+				} */
             }
         }
-		
-		
+				
          r.sleep();
     }
 
