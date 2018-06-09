@@ -364,7 +364,7 @@ int main(int argc, const char **argv)
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
-	ros::Rate r(25); // ? hz
+	ros::Rate r(15); // ? hz
 
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has

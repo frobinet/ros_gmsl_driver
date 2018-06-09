@@ -26,15 +26,13 @@ public:
 	size_t csiPort;
 	uint32_t cameraIdx;
 	
-	
 	// Methods 
 	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
-	
+
 	~OpenCVConnector();
 	virtual void showFPS();
 	
 	void WriteToOpenCV(unsigned char*, int, int);
-	void WriteToOpenCV_GPU(unsigned char*, int, int);
 };
 
 
