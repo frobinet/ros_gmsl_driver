@@ -47,6 +47,7 @@
 #include <Grid.hpp>
 #include <Log.hpp>
 #include <SampleFramework.hpp>
+#include "img_dev.h"
 
 // SDK
 #include <dw/core/Context.h>
@@ -359,7 +360,6 @@ int main(int argc, const char **argv)
         displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
         displayImageProperties.planeCount        = 1;
 		
-
         std::vector<dwImageNvMedia*> pool;
         for (size_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; ++cameraIdx) {
 			dwImageNvMedia rgba{};
@@ -606,7 +606,7 @@ void initSensors(std::vector<Camera> *cameras,
 			
 			//// 
 			ExtImgDevParam extImgDevParam {};
-			extImgDevParam.resolution = const_cast<char*>( "1280x800" );
+			extImgDevParam.resolution = const_cast<char*>( "850x544" ); // Original resolution "1280x800" 
 			salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
 	
             result = dwSAL_createSensor(&salSensor, salParams, sal);
