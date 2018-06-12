@@ -22,8 +22,11 @@ find_package(CUDA REQUIRED)
 find_package(Threads REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(Driveworks REQUIRED)
-find_package(OpenCV REQUIRED )
-
+find_package(OpenCV 3 REQUIRED
+  PATHS /usr/local
+  NO_DEFAULT_PATH
+  CONFIG
+)
 # SET THESE VARIABLES TO YOUR DRIVEWORKS LOCATIONS
 set(Driveworks_INCLUDE_DIR /usr/local/driveworks/include/)
 set(Driveworks_LIBRARY /usr/local/driveworks/lib/)

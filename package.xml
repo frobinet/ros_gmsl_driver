@@ -9,6 +9,11 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
   <depend>libglew-dev</depend><!--TODO: Figure out what actually needs this library-->
+  <depend>nodelet</depend>
+  <export>
+    <nodelet plugin="${prefix}/cv_connection_nodelet.xml" />
+  </export>
+  
   <maintainer email="NA@gmail.com">wei</maintainer>
   <license>BSD</license>
 

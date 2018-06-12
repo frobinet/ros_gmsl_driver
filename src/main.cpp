@@ -177,7 +177,6 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                     g_run = false;
                     break;
                 }
-
                 frameRGBA.push_back(rgba);
                 cameraSensor->rgbaPool.push(&frameRGBA.back());
             }
@@ -239,7 +238,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
         }
 
         // computation
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
         g_run = g_run && !eofAny;
     }
@@ -286,15 +285,11 @@ int main(int argc, const char **argv)
     sigaction(SIGSTOP, &action, NULL); // kill command
 
     g_run = true;
-
+	
     parseArguments(argc, argv);
 	
-    //initGL(&window);
-	
     initSdk(&sdk, window);
-    //initRenderer(&renderer, sdk, window);
     initSAL(&sal, sdk);
-
 
     // create GMSL Camera interface, based on the camera selector mask
     std::vector<Camera> cameraSensor;
@@ -305,26 +300,10 @@ int main(int argc, const char **argv)
         exit(-1);
     }
 
-	// Allocate Pool Capture -> main rendering threads 
-    dwStatus result;
-    for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
-        std::vector<dwImageNvMedia*> pool;
-        for (size_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; ++cameraIdx) {
-            pool.push_back(nullptr);
-        }
-        g_frameRGBAPtr.push_back(pool);
-
-        dwImageProperties cameraImageProperties;
-        dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE,
-                                          cameraSensor[csiPort].sensor);
-        dwImageProperties displayImageProperties = cameraImageProperties;
-        displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
-        displayImageProperties.planeCount        = 1;
-
-    }
+	
 	
 	// Now we will run separate threads for each camera
-    std::vector<std::thread> camThreads;
+    /* std::vector<std::thread> camThreads;
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
         camThreads.push_back(std::thread(threadCameraPipeline, &cameraSensor[i], i, sdk, window));
     }
@@ -333,18 +312,16 @@ int main(int argc, const char **argv)
     g_imageWidth = cameraSensor[0].width;
     g_imageHeight = cameraSensor[0].height;
     //configureGrid(&g_grid, window->width(), window->height(), g_imageWidth, g_imageHeight, g_numCameras);
-
+	*/
+	
     // loop through all cameras check if they have provided the first frame
-    for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
-        for (uint32_t cameraIdx = 0;
-             cameraIdx < cameraSensor[csiPort].numSiblings && g_run;
-             cameraIdx++) {
-
-            while (!g_frameRGBAPtr[csiPort][cameraIdx] && g_run) {
-                std::this_thread::yield();
+   /*  for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
+        for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings && g_run; cameraIdx++) {
+            if (!g_frameRGBAPtr[csiPort][cameraIdx] ) {
+				g_run = false;
             }
         }
-    }
+    }  */
 	
 	// ROS definitions
     int argc2 = 0; char** argv2 = nullptr;
@@ -353,38 +330,90 @@ int main(int argc, const char **argv)
 	
 	// ROS definitions
 	std::vector<OpenCVConnector*> cv_connectors;
+	std::vector<NvMediaImageSurfaceMap> surfaceMap_v;
+
 	// ROS: Create a topic
     // Topic naming scheme is port/camera_idx/image
 	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
-		for (uint32_t cameraIdx = 0;
-			cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
+		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
 				const std::string topic = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
 				cv_connectors.push_back(new OpenCVConnector(topic,csiPort,cameraIdx));
+				
+				NvMediaImageSurfaceMap surfaceMap;
+				surfaceMap_v.push_back(surfaceMap);
 		}
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
-	ros::Rate r(15); // ? hz
+	ros::Rate r(20); // ? hz
+	
+	// Allocate Pool Capture -> main rendering threads. Init all cameras sensors
+    dwStatus result;
+    for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
+		
+		dwImageProperties cameraImageProperties;
+        dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE,
+                                          cameraSensor[csiPort].sensor);
+		
+        dwImageProperties displayImageProperties = cameraImageProperties;
+        displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
+        displayImageProperties.planeCount        = 1;
+		
 
-    // all cameras have provided at least one frame, this thread can now start rendering
-    // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
-    // prepared and render it. Since this is a visualization thread it is not necessary to be in synch
-    //window->makeCurrent();
+        std::vector<dwImageNvMedia*> pool;
+        for (size_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; ++cameraIdx) {
+			dwImageNvMedia rgba{};
+			result = dwImageNvMedia_create(&rgba, &displayImageProperties, sdk);
+			if (result != DW_SUCCESS) {
+				std::cerr << "Cannot create nvmedia image for pool:" <<
+							 dwGetStatusName(result) << std::endl;
+				g_run = false;
+				break;
+			}
+			
+            pool.push_back(&rgba);
+			        }
+        g_frameRGBAPtr.push_back(pool);
+		
+	
+	    // format converter
+        result = dwImageFormatConverter_initialize(&cameraSensor[csiPort].yuv2rgba, cameraImageProperties.type, sdk);
+        if (result != DW_SUCCESS) {
+            std::cerr << "Cannot create pixel format converter : yuv->rgba" <<
+                         dwGetStatusName(result) <<  std::endl;
+            g_run = false;
+        }
+		        g_run = g_run && dwSensor_start(cameraSensor[csiPort].sensor) == DW_SUCCESS;
+		
+    }
+	
+    // Loop over all cameras, send them to OpenCV
+	
     while(g_run && ros::ok() ) {
-		        
         for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
             // for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
-			for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){
-                if (!g_run) {
-                    break;
-                }
+			for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){	
+				//// Get image on NVmedia
+				// capture, convert to rgba and return it
+                captureCamera(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings],
+                                    cameraSensor[csiPort].sensor, cameraIdx - csiPort*cameraSensor[csiPort].numSiblings,
+                                    cameraSensor[csiPort].yuv2rgba);
 				
 				// stop to take screenshot to ROS (will cause a delay)
-				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				//takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				if (NvMediaImageLock(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings]->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap_v[cameraIdx]) == NVMEDIA_STATUS_OK)
+				{
+					cv_connectors[cameraIdx]->WriteToOpenCV_GPU((unsigned char*)surfaceMap_v[cameraIdx].surface[0].mapping, cameraSensor[csiPort].width, cameraSensor[csiPort].height);
+					NvMediaImageUnlock(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings]->img);
+				}  else
+				{
+					std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
+				}
+				
 				//cv_connectors[cameraIdx]->showFPS();
 				
 				// DEBUGING run_time
-				/* if(cameraIdx == 0 && csiPort == 0 ){
+				/*if(cameraIdx == 0 && csiPort == 0 ){
 					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
 					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
 					m_lastRunIterationTime = myclock_t::now();
@@ -395,11 +424,20 @@ int main(int argc, const char **argv)
          r.sleep();
     }
 
+    // for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
+        // camThreads.at(i).join();
+    // }
+
+    //Clean up
+    // release used objects in correct order
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
-        camThreads.at(i).join();
+        dwSensor_stop(cameraSensor[i].sensor);
+        dwSAL_releaseSensor(&cameraSensor[i].sensor);
+
+        //dwImageStreamer_release(&cameraSensor->streamer);
+        dwImageFormatConverter_release(&cameraSensor[i].yuv2rgba);
     }
-
-
+	
     // release used objects in correct order
     dwSAL_release(&sal);
 
@@ -439,18 +477,10 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
     NvMediaImageSurfaceMap surfaceMap;
     if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
     {
-		// Save a png file using Nvidia drivers
-			/*char fname[128];
-			sprintf(fname, "screenshot_%u_%d_%04d.png", group, sibling, gScreenshotCount);
-			lodepng_encode32_file(fname, (unsigned char*)surfaceMap.surface[0].mapping,
-					frameNVMrgba->prop.width, frameNVMrgba->prop.height);*/
+	
+			//cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			cv_connectors->WriteToOpenCV_GPU((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
 			
-			//std::cout << "SCREENSHOT TAKEN to " << fname << "\n";
-		
-		// Send the screenshot to OpenCV to push it over ROS network
-			//std::cout << "SCREENSHOT TAKEN on NVMedia" << "\n";
-			// YOUR CODE HERE
-			cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
 			//std::cout << "SCREENSHOT TAKEN to OpenCV Bridge" << "\n";
 			//ros::spinOnce();
 		NvMediaImageUnlock(frameNVMrgba->img);
@@ -573,7 +603,14 @@ void initSensors(std::vector<Camera> *cameras,
             dwSensorParams salParams;
             salParams.parameters = params.c_str();
             salParams.protocol = "camera.gmsl";
+			
+			//// 
+			ExtImgDevParam extImgDevParam {};
+			extImgDevParam.resolution = const_cast<char*>( "1280x800" );
+			salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
+	
             result = dwSAL_createSensor(&salSensor, salParams, sal);
+			
             if (result == DW_SUCCESS) {
                 Camera cam;
                 cam.sensor = salSensor;
@@ -615,9 +652,10 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
                        uint32_t sibling,
                        dwImageFormatConverterHandle_t yuv2rgba)
 {
-    dwCameraFrameHandle_t frameHandle;
+	dwCameraFrameHandle_t frameHandle;
     dwImageNvMedia *frameNVMyuv = nullptr;
-
+	
+	
     dwStatus result = DW_FAILURE;
     result = dwSensorCamera_readFrame(&frameHandle, sibling, 300000, cameraSensor);
     if (result != DW_SUCCESS) {
@@ -630,6 +668,8 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
         std::cout << "readFrameNvMedia: " << dwGetStatusName(result) << std::endl;
 
     }
+	// DEbug
+	//std::cout<<" out size w"<<frameNVMrgba->prop.width<<" out size h"<<frameNVMrgba->prop.height<<" in size w"<<frameNVMyuv->prop.width<<" in size h"<<frameNVMyuv->prop.height<<std::endl;
 
     result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgba, frameNVMyuv, yuv2rgba);
     if( result != DW_SUCCESS ){
@@ -639,7 +679,7 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
 
     result = dwSensorCamera_returnFrame(&frameHandle);
     if( result != DW_SUCCESS ){
-        std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;
+        std::cout << "copyConvertNvMedia2: " << dwGetStatusName(result) << std::endl;
     }
 
     return DW_SUCCESS;
