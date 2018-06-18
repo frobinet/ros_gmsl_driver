@@ -6,9 +6,9 @@
 
 #include <cv_bridge/cv_bridge.h>
 
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <image_transport/image_transport.h>
 
 #include <opencv2/core.hpp>
 #include <opencv2/core/opengl.hpp>
@@ -18,8 +18,12 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 
-OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx) : it(nh), counter(0),csiPort(csiPort),cameraIdx(cameraIdx)	{
+OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx) :  counter(0),csiPort(csiPort),cameraIdx(cameraIdx)	{
+   	
+   image_transport::ImageTransport it = image_transport::ImageTransport( ros::NodeHandle() );
+   
    pub = it.advertise(topic_name, 1);
+   
    ROStime = ros::Time::now();
    ROStimemain = ros::Time::now();
 }
@@ -67,7 +71,7 @@ void OpenCVConnector::WriteToOpenCV_GPU(unsigned char* buffer, int width, int he
     std_msgs::Header header; // empty header
     header.seq = counter; // user defined counter
     header.stamp = ros::Time::now(); // time
-
+	
     pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, mat_img).toImageMsg()  ); 
 	//counter ++;
 	 

@@ -47,6 +47,7 @@
 #include <Grid.hpp>
 #include <Log.hpp>
 #include <SampleFramework.hpp>
+#include "img_dev.h"
 
 // SDK
 #include <dw/core/Context.h>
@@ -239,7 +240,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
         }
 
         // computation
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
 
         g_run = g_run && !eofAny;
     }
@@ -364,14 +365,13 @@ int main(int argc, const char **argv)
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
-	ros::Rate r(25); // ? hz
+	ros::Rate r(20); // ? hz
 
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
     // prepared and render it. Since this is a visualization thread it is not necessary to be in synch
     //window->makeCurrent();
     while(g_run && ros::ok() ) {
-		        
         for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
             // for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
 			for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){
@@ -573,7 +573,13 @@ void initSensors(std::vector<Camera> *cameras,
             dwSensorParams salParams;
             salParams.parameters = params.c_str();
             salParams.protocol = "camera.gmsl";
-            result = dwSAL_createSensor(&salSensor, salParams, sal);
+			
+			////
+			ExtImgDevParam extImgDevParam {};
+			extImgDevParam.resolution = const_cast<char*>( "850x544" ); // Original resolution "1280x800". alternative resolution "850x544" 
+			salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
+			
+			result = dwSAL_createSensor(&salSensor, salParams, sal);
             if (result == DW_SUCCESS) {
                 Camera cam;
                 cam.sensor = salSensor;
