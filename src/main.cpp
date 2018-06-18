@@ -388,7 +388,6 @@ int main(int argc, const char **argv)
     }
 	
     // Loop over all cameras, send them to OpenCV
-	
     while(g_run && ros::ok() ) {
         for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
             // for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
@@ -604,11 +603,11 @@ void initSensors(std::vector<Camera> *cameras,
             salParams.parameters = params.c_str();
             salParams.protocol = "camera.gmsl";
 			
-			//// 
+			////
 			ExtImgDevParam extImgDevParam {};
-			extImgDevParam.resolution = const_cast<char*>( "850x544" ); // Original resolution "1280x800" 
+			extImgDevParam.resolution = const_cast<char*>( "1280x800" ); // Original resolution "1280x800". alternative resolution "850x544" 
 			salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
-	
+			
             result = dwSAL_createSensor(&salSensor, salParams, sal);
 			
             if (result == DW_SUCCESS) {
