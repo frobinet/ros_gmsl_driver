@@ -38,6 +38,8 @@
     #include <EGL/eglext.h>
 #endif
 
+#include <GLFW/glfw3native.h>
+
 // -----------------------------------------------------------------------------
 WindowGLFW::WindowGLFW(const char* title, int width, int height, bool invisible)
     : WindowBase(width, height)
@@ -123,8 +125,8 @@ WindowGLFW::WindowGLFW(const char* title, int width, int height, bool invisible)
     });
 
 #ifdef VIBRANTE
-    m_display = glfwGetEGLDisplay();
-    m_context = glfwGetEGLContext(m_hWindow);
+   // m_display = glfwGetEGLDisplay();
+   // m_context = glfwGetEGLContext(m_hWindow);
 
     // Get configuration
     EGLint num_config;
@@ -150,11 +152,11 @@ WindowGLFW::~WindowGLFW(void)
 // -----------------------------------------------------------------------------
 EGLDisplay WindowGLFW::getEGLDisplay(void)
 {
-// #ifdef VIBRANTE
-    // return m_display;
-// #else
-    // return 0;
-// #endif
+ #ifdef VIBRANTE
+    //return m_display;
+ #else
+    return 0;
+ #endif
 }
 
 // -----------------------------------------------------------------------------

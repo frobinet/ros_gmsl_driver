@@ -58,11 +58,11 @@
 #include <dw/image/ImageStreamer.h>
 #include <dw/image/FormatConverter.h>
 
-
 #include <ros/ros.h>
 #include "cv_connection.hpp"
 
-	
+#include <GLFW/glfw3native.h>
+
 //------------------------------------------------------------------------------
 // Variables
 //------------------------------------------------------------------------------
@@ -153,16 +153,24 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 	std::vector<dwImageCUDA> frameRGB;
 	{
 		dwImageProperties cameraImageProperties;
-		dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE,
-										  cameraSensor->sensor);
-		
+		result = dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE, cameraSensor->sensor);
+		if(result != DW_SUCCESS)
+		{
+			std::cerr << "error in setting image properties\n";
+		}
+
 		// Initialize streamer from NVMedia to CUDA
 		result = dwImageStreamer_initialize(&nvm2CUDA, &cameraImageProperties, DW_IMAGE_CUDA, sdk);
 		if (result != DW_SUCCESS) 
 		{
 			std::cerr << "\n ERROR Initialising stream: "  << dwGetStatusName(result) << std::endl;
+			g_run = false;
 		}
-	
+		else
+		{
+			std::cerr << "   stream initialised\n" ;
+		}
+
 		// format converter
 		cameraImageProperties.type = DW_IMAGE_CUDA;
 		cameraImageProperties.pxlFormat = DW_IMAGE_YUV420;
@@ -290,7 +298,7 @@ int main(int argc, const char **argv)
 {
 	//SDK objects
 	WindowBase *window            = nullptr;
-	dwContextHandle_t sdk         = DW_NULL_HANDLE;
+	dwContextHandle_t sdk          = DW_NULL_HANDLE;
 	dwRendererHandle_t renderer   = DW_NULL_HANDLE;
 	dwSALHandle_t sal             = DW_NULL_HANDLE;
 
@@ -309,7 +317,7 @@ int main(int argc, const char **argv)
 
 	parseArguments(argc, argv);
 	
-	//initGL(&window);
+	initGL(&window);
 	
 	initSdk(&sdk, window);
 	//initRenderer(&renderer, sdk, window);
@@ -499,23 +507,33 @@ void initGL(WindowBase **window)
 //------------------------------------------------------------------------------
 void initSdk(dwContextHandle_t *context, WindowBase *window)
 {
+	dwStatus status;
 	// create a Logger to log to console
 	// we keep the ownership of the logger at the application level
 	dwLogger_initialize(getConsoleLoggerCallback(true));
 	dwLogger_setLogLevel(DW_LOG_VERBOSE);
 
 	// instantiate Driveworks SDK context
-	dwContextParameters sdkParams;
-	memset(&sdkParams, 0, sizeof(dwContextParameters));
-
-// #ifdef VIBRANTE
-	// sdkParams.eglDisplay = window->getEGLDisplay();
-// #else
+	dwContextParameters sdkParams = dwContextParameters();
+	//memset(&sdkParams, 0, sizeof(dwContextParameters));
 	
+	#ifdef VIBRANTE
+		//sdkParams.eglDisplay = window->getEGLDisplay();
+		
+		// Going directly to the source of getEGLDisplay 
+		// EGLDisplay m_display = EGL_NO_DISPLAY; 
+		//sdkParams.eglDisplay = EGL_NO_DISPLAY;
+		//sdkParams.eglDisplay = glfwGetEGLDisplay();
+		EGLDisplay m_display;
+		sdkParams.eglDisplay = m_display;
+	#endif
 	(void)window;
-//#endif
-
-	dwInitialize(context, DW_VERSION, &sdkParams);
+	
+	status = dwInitialize(context, DW_VERSION, &sdkParams);
+	if (status != DW_SUCCESS) {
+        std::cerr << "Cannot init DriveWorks: " << dwGetStatusName(status) << std::endl;
+        g_run = false;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -652,7 +670,6 @@ dwStatus captureCamera(dwImageCUDA *d_rgb,
 	if( result != DW_SUCCESS ){
 		std::cout << "readFrameNvMedia: " << dwGetStatusName(result) << std::endl;
 	}
-	
 
 	result = dwImageStreamer_postNvMedia(frameNVMyuv, *nvm2CUDA);
 		if (result != DW_SUCCESS) 
@@ -691,7 +708,8 @@ dwStatus captureCamera(dwImageCUDA *d_rgb,
 	if (result != DW_SUCCESS) 
 	{
 		std::cerr << "ERROR converting cuda format: " << dwGetStatusName(result) << std::endl;
-	} 
+	}
+	
 	// TODO record post cv frame for logging here 
 	int height =  d_frame->prop.height;
 	int width = d_frame->prop.width;
