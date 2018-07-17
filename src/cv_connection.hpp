@@ -19,20 +19,25 @@ public:
 	ros::NodeHandle nh;
 	image_transport::ImageTransport it;
 	image_transport::Publisher pub;
+	
 	std::string topic_name;
 	ros::Time ROStime;
 	ros::Time ROStimemain;
-	unsigned int counter;
+	unsigned int counter = 0;
 	size_t csiPort;
 	uint32_t cameraIdx;
 	
+	// Compress img_msg
+	ros::Publisher pub_comp;
 	// Methods 
-	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
+	OpenCVConnector(std::string topic_name,std::string topic_compresed,size_t csiPort, uint32_t cameraIdx);
 
 	~OpenCVConnector();
 	virtual void showFPS();
 	
 	void WriteToOpenCV(unsigned char*, int, int);
+	void WriteToRosPng(unsigned char*, int, int);
+	void WriteToRosJpeg(unsigned char*, int, int);
 };
 
 
