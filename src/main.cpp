@@ -523,9 +523,11 @@ void initSdk(dwContextHandle_t *context, WindowBase *window)
 		// Going directly to the source of getEGLDisplay 
 		// EGLDisplay m_display = EGL_NO_DISPLAY; 
 		//sdkParams.eglDisplay = EGL_NO_DISPLAY;
+		
+		///EGLDisplay m_display;
+		///sdkParams.eglDisplay = m_display; 
+		
 		sdkParams.eglDisplay = glfwGetEGLDisplay();
-		EGLDisplay m_display;
-		//sdkParams.eglDisplay = m_display;
 	#endif
 	(void)window;
 	
