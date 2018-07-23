@@ -97,7 +97,7 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
     //img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
 	
 	//sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(mat_img).toImageMsg();
-    pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::BGRA8 , mat_img).toImageMsg()  ); 
+    pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGBA8 , mat_img).toImageMsg()  ); 
 	//counter ++;
 	
 	/*std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStimemain.toSec())<<std::endl;
