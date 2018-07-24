@@ -16,8 +16,8 @@ set(lodepng_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodep
 set(lodepng_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng-20150912/lib)
 set(lodepng_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng/)
 
-set(gpujpeg_INCLUDE_DIR /usr/local/)
-set(gpujpeg_LIBRARY /usr/local/lib/libGPUJPEG.so)
+set(gpujpeg_INCLUDE_DIR /usr/local/include/)
+set(gpujpeg_LIBRARY /usr/local/lib/libgpujpeg.so)
 
 link_directories(${glfw_LIBRARY})
 link_directories(${lodepng_LIBRARY})

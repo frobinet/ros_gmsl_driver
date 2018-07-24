@@ -349,9 +349,6 @@ int main(int argc, const char **argv)
         }
     }
 	
-	
-	
-	
 	// ROS definitions
     int argc2 = 0; char** argv2 = nullptr;
     ros::init(argc2, argv2, "image_publisher");
@@ -450,8 +447,8 @@ void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t group, uin
     NvMediaImageSurfaceMap surfaceMap;
     if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
     {
-			//cv_connectors->WriteToRosJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-			cv_connectors->WriteToOpenCVJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			cv_connectors->WriteToRosJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			//cv_connectors->WriteToOpenCVJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
 			
 		NvMediaImageUnlock(frameNVMrgba->img);
     }else

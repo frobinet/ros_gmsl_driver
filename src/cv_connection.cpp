@@ -35,8 +35,16 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 	// (for now, it must be 3)
 	param_image.color_space = GPUJPEG_RGB;
 	param_image.sampling_factor = GPUJPEG_4_4_4;
+	
+	/* if ( gpujpeg_init_device(0, 0) ){
+		std::cerr << "    ERROR starting CUDA for compression" << std::endl;
+	} */
+	
 	encoder = gpujpeg_encoder_create(&param, &param_image);
-   
+	if ( encoder == NULL )	{
+		std::cerr << " ERROR creating jpeg encoder" << std::endl;
+	}
+    
 }
 
 void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
@@ -89,19 +97,23 @@ void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int he
 	c_img_msg.format = "jpeg";
 	
     pub_comp.publish(  c_img_msg  );
-	
 }
 
 void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
 	sensor_msgs::CompressedImage c_img_msg; 
 	
+	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
+	
 		////////////// Compress directly to JPEG
 		struct gpujpeg_encoder_input encoder_input;
-		gpujpeg_encoder_input_set_image(&encoder_input, buffer);
+		gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
+		//gpujpeg_encoder_input_set_image(&encoder_input, buffer);
 		
 		int image_compressed_size = 0;
 		uint8_t* image_compressed = NULL;
-		if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed, &image_compressed_size) != 0 )
+		if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed,
+		&image_compressed_size, false) != 0 )
 						std::cerr << "cannot encode image\n";
 		/////////////////////
 		c_img_msg.data.resize( image_compressed_size );
