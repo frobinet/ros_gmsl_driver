@@ -102,13 +102,13 @@ void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int he
 void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
 	sensor_msgs::CompressedImage c_img_msg; 
 	
-	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
-	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
+	//cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	//cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
 	
 		////////////// Compress directly to JPEG
 		struct gpujpeg_encoder_input encoder_input;
-		gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
-		//gpujpeg_encoder_input_set_image(&encoder_input, buffer);
+		//gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
+		gpujpeg_encoder_input_set_image(&encoder_input, buffer);
 		
 		int image_compressed_size = 0;
 		uint8_t* image_compressed = NULL;
