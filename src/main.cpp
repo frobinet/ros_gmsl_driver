@@ -2,7 +2,7 @@
 // This code contains NVIDIA Confidential Information and is disclosed
 // under the Mutual Non-Disclosure Agreement.
 //
-// Notice
+// Notice 
 // ALL NVIDIA DESIGN SPECIFICATIONS AND CODE ("MATERIALS") ARE PROVIDED "AS IS" NVIDIA MAKES
 // NO REPRESENTATIONS, WARRANTIES, EXPRESSED, IMPLIED, STATUTORY, OR OTHERWISE WITH RESPECT TO
 // THE MATERIALS, AND EXPRESSLY DISCLAIMS ANY IMPLIED WARRANTIES OF NONINFRINGEMENT,
@@ -47,6 +47,7 @@
 #include <Grid.hpp>
 #include <Log.hpp>
 #include <SampleFramework.hpp>
+#include "img_dev.h"
 
 // SDK
 #include <dw/core/Context.h>
@@ -64,8 +65,6 @@
 
 #include <nvmedia_2d.h>
 	
-#include "libgpujpeg/gpujpeg.h"
-
 //------------------------------------------------------------------------------
 // Variables
 //------------------------------------------------------------------------------
@@ -79,7 +78,7 @@ typedef std::chrono::time_point<myclock_t> timepoint_t;
 timepoint_t m_lastRunIterationTime;
 
 ProgramArguments g_arguments(
-    {
+    { 
         ProgramArguments::Option_t("type-ab", "ar0231-rccb"),
         ProgramArguments::Option_t("type-cd", "ar0231-rccb"),
         ProgramArguments::Option_t("type-ef", "ar0231-rccb"),
@@ -113,6 +112,7 @@ struct Camera {
 int main(int argc, const char **argv);
 void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling);
 void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
+void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
 
 void parseArguments(int argc, const char **argv);
 void initGL(WindowBase **window);
@@ -127,8 +127,7 @@ void initSensors(std::vector<Camera> *cameras,
 dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
                        dwSensorHandle_t cameraSensor,
                        uint32_t sibling,
-                       dwImageFormatConverterHandle_t yuv2rgba,
-					    gpujpeg_encoder* encoders);
+                       dwImageFormatConverterHandle_t yuv2rgba);
 
 void renderFrame(dwImageStreamerHandle_t streamer, dwRendererHandle_t renderer);
 
@@ -190,29 +189,6 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
         eof = false;
     }
 	
-	
-	// init jpeg encoder
-	struct gpujpeg_parameters param;
-	gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
-
-	struct gpujpeg_image_parameters param_image;
-	gpujpeg_image_set_default_parameters(&param_image);
-	param_image.width = 1920; // ??????????????
-	param_image.height = 1208;
-	param_image.comp_count = 3;
-	// (for now, it must be 3)
-	param_image.color_space = GPUJPEG_RGB;
-	param_image.sampling_factor = GPUJPEG_4_4_4;
-	std::vector<gpujpeg_encoder*> encoders;
-	
-	for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor->numSiblings; cameraIdx++) {
-		// init jpeg encoder
-		encoders.push_back(gpujpeg_encoder_create(&param,
-					&param_image));
-		if ( encoders.back() == NULL )
-			std::cerr << "cannot create encoder\n";	
-	}
-	
     // main loop
     while (g_run) {
         bool eofAny = false;
@@ -238,7 +214,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                 // capture, convert to rgba and return it
                 eof = captureCamera(cameraSensor->rgbaPool.front(),
                                     cameraSensor->sensor, cameraIdx,
-                                    cameraSensor->yuv2rgba, encoders[cameraIdx]);
+                                    cameraSensor->yuv2rgba);
                 g_frameRGBAPtr[port][cameraIdx] = cameraSensor->rgbaPool.front();
                 cameraSensor->rgbaPool.pop();
 
@@ -373,6 +349,9 @@ int main(int argc, const char **argv)
         }
     }
 	
+	
+	
+	
 	// ROS definitions
     int argc2 = 0; char** argv2 = nullptr;
     ros::init(argc2, argv2, "image_publisher");
@@ -385,9 +364,8 @@ int main(int argc, const char **argv)
 	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
 		for (uint32_t cameraIdx = 0;
 			cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
-				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image_raw"); 
-				const std::string topic_compresed = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/compressed");
-				cv_connectors.push_back(new OpenCVConnector(topic_raw,topic_compresed,csiPort,cameraIdx));
+				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
+				cv_connectors.push_back(new OpenCVConnector(topic_raw,csiPort,cameraIdx));
 		}
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
@@ -409,7 +387,8 @@ int main(int argc, const char **argv)
 				
 				// stop to take screenshot to ROS (will cause a delay)
 				//takeScreenshot(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx);
-				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				//takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				takeScreenshot_to_ROS_JPEG(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
 				
 				//cv_connectors[cameraIdx]->showFPS();
 				
@@ -465,6 +444,22 @@ void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t siblin
         std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
     }
 }
+void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
+{
+	// Convert to OpenCV format, Convert to to ROS images format and publish
+    NvMediaImageSurfaceMap surfaceMap;
+    if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
+    {
+			//cv_connectors->WriteToRosJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			cv_connectors->WriteToOpenCVJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			
+		NvMediaImageUnlock(frameNVMrgba->img);
+    }else
+    {
+        std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
+    }
+}
+
 void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
 {
 	// Convert to OpenCV format, Convert to to ROS images format and publish
@@ -486,8 +481,6 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
 			cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
 			
 			//cv_connectors->WriteToRosPng((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-			
-			//cv_connectors->WriteToRosJpeg((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
 			
 			//std::cout << "SCREENSHOT TAKEN to OpenCV Bridge" << "\n";
 			//ros::spinOnce();
@@ -611,7 +604,12 @@ void initSensors(std::vector<Camera> *cameras,
             dwSensorParams salParams;
             salParams.parameters = params.c_str();
             salParams.protocol = "camera.gmsl";
-            result = dwSAL_createSensor(&salSensor, salParams, sal);
+            //// Output size change
+				ExtImgDevParam extImgDevParam {};
+				extImgDevParam.resolution = const_cast<char*>( "1920x1208" ); // Original resolution "1920x1208" or "1280x800". alternative resolution "850x544" 
+				salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
+			
+			result = dwSAL_createSensor(&salSensor, salParams, sal);
             if (result == DW_SUCCESS) {
                 Camera cam;
                 cam.sensor = salSensor;
@@ -651,8 +649,7 @@ void initSensors(std::vector<Camera> *cameras,
 dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
                        dwSensorHandle_t cameraSensor,
                        uint32_t sibling,
-                       dwImageFormatConverterHandle_t yuv2rgba,
-					   gpujpeg_encoder* encoder)
+                       dwImageFormatConverterHandle_t yuv2rgba)
 {
     dwCameraFrameHandle_t frameHandle;
     dwImageNvMedia *frameNVMyuv = nullptr;
@@ -676,19 +673,6 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
 
     }
 	
-	////////////// Compress directly to JPEG??
-	/* struct gpujpeg_encoder_input encoder_input;
-	gpujpeg_encoder_input_set_image(&encoder_input, (uint8_t*) frameNVMrgba->img);
-	
-	int image_compressed_size = 0;
-	uint8_t* image_compressed = NULL;
-	if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed,
-							&image_compressed_size) != 0 )
-					std::cerr << "cannot encode image\n";
-	std::vector<uint8_t> img_f;
-	
-	memcpy(&img_f[0], image_compressed, image_compressed_size);     */
-	/////////////////////
 	/*
 	//////////////
 	NvMedia2DBlitParameters * 	params;

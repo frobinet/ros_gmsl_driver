@@ -6,6 +6,8 @@
 #include <image_transport/image_transport.h>
 #include <string>
 
+#include "libgpujpeg/gpujpeg.h"
+
 
 class OpenCVConnector {
 
@@ -29,8 +31,12 @@ public:
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;
+	
+	// JPEG encoder
+	gpujpeg_encoder* encoder;
+	
 	// Methods 
-	OpenCVConnector(std::string topic_name,std::string topic_compresed,size_t csiPort, uint32_t cameraIdx);
+	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
 
 	~OpenCVConnector();
 	virtual void showFPS();
@@ -38,6 +44,7 @@ public:
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToRosPng(unsigned char*, int, int);
 	void WriteToRosJpeg(unsigned char*, int, int);
+	void WriteToOpenCVJpeg(unsigned char*, int, int);
 };
 
 

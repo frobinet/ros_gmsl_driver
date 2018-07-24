@@ -9,18 +9,33 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
-	
+#include <opencv2/opencv.hpp>
+
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CompressedImage.h>
 
 
-OpenCVConnector::OpenCVConnector(std::string topic_name,std::string topic_compresed,size_t csiPort,uint32_t cameraIdx) : it(nh), counter(0),csiPort(csiPort),cameraIdx(cameraIdx)	{
+OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx) : it(nh), counter(0),csiPort(csiPort),cameraIdx(cameraIdx)	{
    pub = it.advertise(topic_name, 1);
-   pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_compresed, 1);
+   pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_name + std::string("/compressed"), 1);
    
    ROStime = ros::Time::now();
    ROStimemain = ros::Time::now();
+   
+   // GPU JPEG encoder
+	struct gpujpeg_parameters param;
+	gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
+
+	struct gpujpeg_image_parameters param_image;
+	gpujpeg_image_set_default_parameters(&param_image);
+	param_image.width = 1920; // ??????????????  "850x544"??. Native resolution is   1920
+	param_image.height = 1208;  // Native resolution is  1208
+	param_image.comp_count = 3;
+	// (for now, it must be 3)
+	param_image.color_space = GPUJPEG_RGB;
+	param_image.sampling_factor = GPUJPEG_4_4_4;
+	encoder = gpujpeg_encoder_create(&param, &param_image);
    
 }
 
@@ -36,19 +51,7 @@ void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height
 
 	c_img_msg.header = header;
 	c_img_msg.format = "png";
-	//c_img_msg.data.resize(  );
-	
-	//c_img_msg.data.resize(width*height);
-	//std::cout<< " \n Data type is:  "<<  typeid(c_img_msg.data).name() <<std::endl;
-	
-	//c_img_msg.data[0] = *buffer;
-	//std::memcpy(&c_img_msg.data[0], buffer, sizeof(buffer)*width*height*4);
-	
-	//memcpy(&c_img_msg.data[0], (uint8_t *) buffer, sizeof(buffer)*width*height*4);  
-	
-	//std::cout<<" size copied "<<sizeof buffer<<" Img size:  "<<cv::Size(width, height)<<std::endl;
-	
-	
+
 	// Using: lodepng. See references:
     //  	https://raw.githubusercontent.com/lvandeve/lodepng/master/examples/example_encode.cpp
 	//		http://docs.ros.org/indigo/api/libfovis/html/lodepng_8h_source.html
@@ -65,12 +68,22 @@ void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height
 
 }
 
+void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int height) { // JPEG encoding with OpenCV
+	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_BGRA2RGB);   //=COLOR_BGRA2RGB
+	
+	sensor_msgs::CompressedImage c_img_msg; 
+	
+	c_img_msg.data.resize( mat_img.rows*mat_img.cols );
+	
+	std::vector<int> params = { cv::IMWRITE_JPEG_QUALITY, 95 };
+	
+	cv::imencode(".jpg", mat_img, c_img_msg.data, params );	
 
-void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
-	sensor_msgs::CompressedImage c_img_msg; // std::vector< uint8_t >
 	
-	
-    c_img_msg.header.seq = counter; // user defined counter
+	std_msgs::Header header; // empty header
+	c_img_msg.header = header;
+	//c_img_msg.header.seq = counter; // user defined counter
 	c_img_msg.header.stamp = ros::Time::now(); // time
 
 	c_img_msg.format = "jpeg";
@@ -78,6 +91,34 @@ void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int heigh
     pub_comp.publish(  c_img_msg  );
 	
 }
+
+void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
+	sensor_msgs::CompressedImage c_img_msg; 
+	
+		////////////// Compress directly to JPEG
+		struct gpujpeg_encoder_input encoder_input;
+		gpujpeg_encoder_input_set_image(&encoder_input, buffer);
+		
+		int image_compressed_size = 0;
+		uint8_t* image_compressed = NULL;
+		if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed, &image_compressed_size) != 0 )
+						std::cerr << "cannot encode image\n";
+		/////////////////////
+		c_img_msg.data.resize( image_compressed_size );
+		memcpy(&c_img_msg.data[0], image_compressed, image_compressed_size);
+	
+	std_msgs::Header header; // empty header
+	c_img_msg.header = header;
+	//c_img_msg.header.seq = counter; // user defined counter
+	c_img_msg.header.stamp = ros::Time::now(); // time
+
+	c_img_msg.format = "jpeg";
+	
+    pub_comp.publish(  c_img_msg  );
+	
+}
+
+
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
 	// This  would take a lot of time!
 	// create a cv::Mat from a dwImageNvMedia rgbaImage
@@ -103,6 +144,7 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	/*std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStimemain.toSec())<<std::endl;
 	ROStimemain = ros::Time::now(); */
 }
+
 void OpenCVConnector::showFPS() {
 	std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStime.toSec())<<std::endl;
 	ROStime = ros::Time::now();
