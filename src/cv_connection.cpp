@@ -24,13 +24,12 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
    ROStimemain = ros::Time::now();
    
    // GPU JPEG encoder
-	struct gpujpeg_parameters param;
 	gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
-
-	struct gpujpeg_image_parameters param_image;
+	param.quality = 60; 
+	
 	gpujpeg_image_set_default_parameters(&param_image);
-	param_image.width = 1920; // ??????????????  "850x544"??. Native resolution is   1920
-	param_image.height = 1208;  // Native resolution is  1208
+	param_image.width = 1280; // ??????????????  "850x544"??. Native resolution is   1920
+	param_image.height = 800;  // Native resolution is  1208
 	param_image.comp_count = 3;
 	// (for now, it must be 3)
 	param_image.color_space = GPUJPEG_RGB;
@@ -45,7 +44,7 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 		std::cerr << " ERROR creating jpeg encoder" << std::endl;
 	}
     
-}
+} 
 
 void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
 
@@ -102,13 +101,14 @@ void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int he
 void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
 	sensor_msgs::CompressedImage c_img_msg; 
 	
-	//cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
-	//cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
+	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	cv::resize(mat_img, mat_img,  cv::Size(param_image.width,param_image.height), 0, 0, CV_INTER_LINEAR); //
+	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
 	
 		////////////// Compress directly to JPEG
 		struct gpujpeg_encoder_input encoder_input;
-		//gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
-		gpujpeg_encoder_input_set_image(&encoder_input, buffer);
+		gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
+		//gpujpeg_encoder_input_set_image(&encoder_input, buffer);
 		
 		int image_compressed_size = 0;
 		uint8_t* image_compressed = NULL;

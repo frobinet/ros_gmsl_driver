@@ -603,7 +603,7 @@ void initSensors(std::vector<Camera> *cameras,
             salParams.protocol = "camera.gmsl";
             //// Output size change
 				ExtImgDevParam extImgDevParam {};
-				extImgDevParam.resolution = const_cast<char*>( "1920x1208" ); // Original resolution "1920x1208" or "1280x800". alternative resolution "850x544" 
+				extImgDevParam.resolution = const_cast<char*>( "850x544"  ); // Original resolution "1920x1208" or "1280x800". alternative resolution "850x544" 
 				salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
 			
 			result = dwSAL_createSensor(&salSensor, salParams, sal);
@@ -622,6 +622,7 @@ void initSensors(std::vector<Camera> *cameras,
                 cam.width = cameraImageProperties.width;
                 cam.height = cameraImageProperties.height;
                 cam.numSiblings = cameraProperties.siblings;
+				std::cout<<"cam.width "<<cam.width<<" cam.height "<<cam.height<<" cam.numSiblings "<<cam.numSiblings<<std::endl; 
 
                 cameras->push_back(cam);
 
@@ -671,12 +672,22 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
     }
 	
 	/*
-	//////////////
+	////////////// GRB channels filtering 
 	NvMedia2DBlitParameters * 	params;
 	params->filter ;
 	NvMedia2DBlitEx(NvMedia2D * i2d, frameNVMrgba, NULL, frameNVMrgba2, NULL, params, NULL);
-	/////////
+	///////// 
 	*/
+	
+	//////////////////////// JPEG compression
+	/*
+	NvMediaStatus nvStatus = NvMediaIJPEFeedFrame(jpegEncoder, imageYUV, 75);
+	uint32_t image_compressed_size = 0;
+	nvStatus = NvMediaIJPEBitsAvailable(jpegEncoder, &image_compressed_size, NVMEDIA_ENCODE_BLOCKING_TYPE_IF_PENDING, 10000);
+	uint8_t* image_compressed = (uint8_t*)malloc(image_compressed_size);
+	nvStatus = NvMediaIJPEGetBits(jpegEncoder, &image_compressed_size, image_compressed, 0);
+	*/
+	////////////////////////
     result = dwSensorCamera_returnFrame(&frameHandle);
     if( result != DW_SUCCESS ){
         std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;

@@ -34,7 +34,9 @@ public:
 	
 	// JPEG encoder
 	gpujpeg_encoder* encoder;
-	
+	struct gpujpeg_image_parameters param_image;
+	struct gpujpeg_parameters param;
+
 	// Methods 
 	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
 
