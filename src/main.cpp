@@ -112,6 +112,7 @@ struct Camera {
 int main(int argc, const char **argv);
 void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling);
 void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
+void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
 
 void parseArguments(int argc, const char **argv);
 void initGL(WindowBase **window);
@@ -380,7 +381,10 @@ int main(int argc, const char **argv)
                 }
 				
 				// stop to take screenshot to ROS (will cause a delay)
-				takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				//takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				takeScreenshot_to_ROS_JPEG(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				
+				
 				//cv_connectors[cameraIdx]->showFPS();
 				
 				// DEBUGING run_time
@@ -450,7 +454,9 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
 		// Send the screenshot to OpenCV to push it over ROS network
 			//std::cout << "SCREENSHOT TAKEN on NVMedia" << "\n";
 			// YOUR CODE HERE
-			cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			//cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			cv_connectors->WriteToOpenCV_GPU((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+
 			//std::cout << "SCREENSHOT TAKEN to OpenCV Bridge" << "\n";
 			//ros::spinOnce();
 		NvMediaImageUnlock(frameNVMrgba->img);
@@ -459,7 +465,20 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
         std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
     }
 }
-
+void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
+{
+	// Convert to OpenCV format, Convert to to ROS images format and publish
+    NvMediaImageSurfaceMap surfaceMap;
+    if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
+    {
+			cv_connectors->WriteToOpenCV_GPU_Jpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+			
+		NvMediaImageUnlock(frameNVMrgba->img);
+    }else
+    {
+        std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
+    }
+}
 //------------------------------------------------------------------------------
 void parseArguments(int argc, const char **argv)
 {

@@ -6,6 +6,7 @@
 #include <image_transport/image_transport.h>
 #include <string>
 
+#include "libgpujpeg/gpujpeg.h"
 
 class OpenCVConnector {
 
@@ -16,14 +17,24 @@ public:
 	sensor_msgs::ImagePtr * img_msg;
 	std_msgs::Header header; // empty header
 	
+	ros::NodeHandle nh;
+	image_transport::ImageTransport it;
 	image_transport::Publisher pub;
-
+	
 	std::string topic_name;
 	ros::Time ROStime;
 	ros::Time ROStimemain;
-	unsigned int counter;
+	unsigned int counter = 0;
 	size_t csiPort;
 	uint32_t cameraIdx;
+	
+	// Compress img_msg
+	ros::Publisher pub_comp;
+	
+	// JPEG encoder
+	gpujpeg_encoder* encoder;
+	struct gpujpeg_image_parameters param_image;
+	struct gpujpeg_parameters param;
 	
 	
 	// Methods 
@@ -34,6 +45,7 @@ public:
 	
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToOpenCV_GPU(unsigned char*, int, int);
+	void WriteToOpenCV_GPU_Jpeg(unsigned char*, int, int);
 };
 
 
