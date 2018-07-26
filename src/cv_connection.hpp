@@ -47,6 +47,8 @@ public:
 	void WriteToRosPng(unsigned char*, int, int);
 	void WriteToRosJpeg(unsigned char*, int, int);
 	void WriteToOpenCVJpeg(unsigned char*, int, int);
+	void PublishJpeg(uint8_t* , uint32_t );
+
 };
 
 

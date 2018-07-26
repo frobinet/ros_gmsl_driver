@@ -76,7 +76,7 @@ void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height
 }
 
 void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int height) { // JPEG encoding with OpenCV
-	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	cv::Mat mat_img(cv::Size(width, height), CV_8UC4 , buffer);
 	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_BGRA2RGB);   //=COLOR_BGRA2RGB
 	
 	sensor_msgs::CompressedImage c_img_msg; 
@@ -113,7 +113,7 @@ void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int heigh
 		int image_compressed_size = 0;
 		uint8_t* image_compressed = NULL;
 		if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed,
-		&image_compressed_size, false) != 0 )
+		&image_compressed_size, false) != 0 ) // Upload from CPU 
 						std::cerr << "cannot encode image\n";
 		/////////////////////
 		c_img_msg.data.resize( image_compressed_size );
@@ -123,39 +123,71 @@ void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int heigh
 	c_img_msg.header = header;
 	//c_img_msg.header.seq = counter; // user defined counter
 	c_img_msg.header.stamp = ros::Time::now(); // time
-
+	
 	c_img_msg.format = "jpeg";
 	
     pub_comp.publish(  c_img_msg  );
-	
 }
 
 
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
 	// This  would take a lot of time!
 	// create a cv::Mat from a dwImageNvMedia rgbaImage
-    cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+    // cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
     //cv::Mat converted;//=new cv::Mat();
     //cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2BGR
 	
 	
     //cv_bridge::CvImage img_bridge;
-    //sensor_msgs::Image img_msg; // >> message to be sent
-	
+	sensor_msgs::ImagePtr ptr = boost::make_shared<sensor_msgs::Image>();
+    sensor_msgs::Image &img_msg = *ptr; // >> message to be sent
+	 
     std_msgs::Header header; // empty header
     header.seq = counter; // user defined counter
     header.stamp = ros::Time::now(); // time
+		
+	// Formatting directly the message no OpenCV
+	
+	img_msg.height = height;
+	img_msg.width = width;
+	img_msg.encoding = sensor_msgs::image_encodings::RGBA8;
+	
+	img_msg.step = width * 4; // 1 Byte per 4 Channels of RGBA format
+
+	size_t size = img_msg.step * height;
+	img_msg.data.resize(size);
+	memcpy((char *)( &img_msg.data[0] ) , buffer , size);
 	
     //img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, mat_img);
     //img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
 	
 	//sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(mat_img).toImageMsg();
-    pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGBA8 , mat_img).toImageMsg()  ); 
+    ///pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGBA8 , mat_img).toImageMsg()  ); 
+	
+	pub.publish( ptr );
 	//counter ++;
 	
 	/*std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStimemain.toSec())<<std::endl;
 	ROStimemain = ros::Time::now(); */
 }
+
+
+void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_compressed_size) {
+	sensor_msgs::CompressedImage c_img_msg; 
+	
+	c_img_msg.data.resize( image_compressed_size );
+	memcpy(&c_img_msg.data[0], image_compressed, image_compressed_size);
+	
+	std_msgs::Header header; // empty header
+	c_img_msg.header = header;
+	//c_img_msg.header.seq = counter; // user defined counter
+	c_img_msg.header.stamp = ros::Time::now(); // time
+	
+	c_img_msg.format = "jpeg";
+	
+    pub_comp.publish(  c_img_msg  );
+}
+
 
 void OpenCVConnector::showFPS() {
 	std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStime.toSec())<<std::endl;
