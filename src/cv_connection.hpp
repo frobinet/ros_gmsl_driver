@@ -41,7 +41,6 @@ public:
 	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
 
 	~OpenCVConnector();
-	virtual void showFPS();
 	
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToRosPng(unsigned char*, int, int);

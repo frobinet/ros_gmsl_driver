@@ -6,7 +6,6 @@
 
 #include <lodepng.h>
 
-
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -24,7 +23,7 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
    ROStimemain = ros::Time::now();
    
    // GPU JPEG encoder
-	gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
+	/* gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
 	param.quality = 60; 
 	
 	gpujpeg_image_set_default_parameters(&param_image);
@@ -35,14 +34,14 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 	param_image.color_space = GPUJPEG_RGB;
 	param_image.sampling_factor = GPUJPEG_4_4_4;
 	
-	/* if ( gpujpeg_init_device(0, 0) ){
+	if ( gpujpeg_init_device(0, 0) ){
 		std::cerr << "    ERROR starting CUDA for compression" << std::endl;
-	} */
+	} 
 	
 	encoder = gpujpeg_encoder_create(&param, &param_image);
 	if ( encoder == NULL )	{
 		std::cerr << " ERROR creating jpeg encoder" << std::endl;
-	}
+	} */
     
 } 
 
@@ -171,7 +170,6 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	ROStimemain = ros::Time::now(); */
 }
 
-
 void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_compressed_size) {
 	sensor_msgs::CompressedImage c_img_msg; 
 	
@@ -187,13 +185,6 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	
     pub_comp.publish(  c_img_msg  );
 }
-
-
-void OpenCVConnector::showFPS() {
-	std::cerr << "  Port: "<<csiPort<<"  Camera: "<<cameraIdx<<" FPS: " << 1.0/(ros::Time::now().toSec() - ROStime.toSec())<<std::endl;
-	ROStime = ros::Time::now();
-}
-	
 	
 
 
