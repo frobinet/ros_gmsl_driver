@@ -38,6 +38,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   cv_bridge 
   image_transport
+  camera_info_manager 
 )
 
 catkin_package(

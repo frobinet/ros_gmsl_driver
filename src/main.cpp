@@ -105,7 +105,7 @@ std::vector<std::vector<uint8_t*>>	 last_image_compressedPtr; // Allocate to max
 std::vector<std::vector< uint32_t  >>  last_image_compressed_size;
 
 uint32_t max_jpeg_bytes = (10 * 1024 * 1024);  // maximum bytes that JPEG encoder can produce for each feed frame. Set to uint8_t s 1920*1208*3*1 ??
-
+bool img_compressed = false;
 // combine by camera sensor, which might have camera siblings
 struct Camera {
     dwSensorHandle_t sensor;
@@ -115,6 +115,7 @@ struct Camera {
     dwImageStreamerHandle_t streamer; // different streamers to support different resolutions
     dwImageFormatConverterHandle_t yuv2rgba;
     std::queue<dwImageNvMedia *> rgbaPool;
+	std::queue<uint8_t*> jpegPool;
 	std::vector< NvMediaIJPE * > JPEGEncoders; 
 };
 
@@ -136,7 +137,7 @@ void initSensors(std::vector<Camera> *cameras,
                  uint32_t *numCameras,
                  dwSALHandle_t sal,
                  ProgramArguments &arguments);
-dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
+dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t*,
                        dwSensorHandle_t cameraSensor,
                        uint32_t port, uint32_t sibling,
                        dwImageFormatConverterHandle_t yuv2rgba, NvMediaIJPE * );
@@ -208,7 +209,6 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 											   NvMediaSurfaceType_Image_YUV_420 ,     // inputFormat : NvMediaSurfaceType_Image_RGBA ?? NvMediaSurfaceType_R8G8B8A8 , NvMediaSurfaceType_Image_YUV_420
 											   (uint8_t) 1,          // maxOutputBuffering. Buffering between feed into Encoder (NvMediaIJPEGetBits) and NvMediaIJPEGetBits
 											   max_jpeg_bytes );              // maxBitstreamBytes: the maximum bytes that JPEG encoder can produce for each feed frame. 
-				
 				if(!jpegEncoder) {
 					std::cerr << "main: NvMediaIJPECreate failed\n" <<  std::endl;
 					g_run = false;
@@ -216,7 +216,14 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 					cameraSensor->JPEGEncoders.push_back( jpegEncoder );
 				}
 		}
-		
+		// allocate pool of JPEG compressed images
+		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor->numSiblings; cameraIdx++) {
+            for (int32_t k = 0; k < pool_size; k++) {
+                uint8_t* jpeg_img = (uint8_t*) malloc( max_jpeg_bytes ); // Allocate to max_jpeg_bytes ??
+                cameraSensor->jpegPool.push(jpeg_img);
+            }
+        }
+	
         g_run = g_run && dwSensor_start(cameraSensor->sensor) == DW_SUCCESS;
         eof = false;
     }
@@ -242,17 +249,21 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
             // capture from all cameras within a csi port
             for (uint32_t cameraIdx = 0;  cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbaPool.empty(); cameraIdx++) {
                 // capture, convert to rgba and return it
-                eof = captureCamera(cameraSensor->rgbaPool.front(),
+                eof = captureCamera(cameraSensor->rgbaPool.front(),cameraSensor->jpegPool.front(),
                                     cameraSensor->sensor, port, cameraIdx,
                                     cameraSensor->yuv2rgba, cameraSensor->JPEGEncoders[cameraIdx]);
                 last_frameRGBAPtr[port][cameraIdx] = cameraSensor->rgbaPool.front();
 				cameraSensor->rgbaPool.pop();
+				
+				last_image_compressedPtr[port][cameraIdx] =  cameraSensor->jpegPool.front();
+				cameraSensor->jpegPool.pop();
 			
                 if (!eof) { //if receiving DW_SUCCESS (DW_SUCCESS is 0 by definition). It WAS  POSSIBLE to retrieve a frame
                     cameraSensor->rgbaPool.push(last_frameRGBAPtr[port][cameraIdx]);
+					cameraSensor->jpegPool.push(last_image_compressedPtr[port][cameraIdx]);
                 }
 				
-				// Time
+				// Time debg
 				 /* if(cameraIdx == 0 ){
 					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
 					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
@@ -262,18 +273,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                 eofAny |= eof;
             }
         }
-
-        /* // stop to take screenshot (will cause a delay)
-        if (gTakeScreenshot) {
-            {
-                for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbaPool.empty(); cameraIdx++) {
-                    takeScreenshot(last_frameRGBAPtr[port][cameraIdx], port, cameraIdx);
-                }
-            }
-            gScreenshotCount++;
-            gTakeScreenshot = false;
-        } */
-
+		
         // computation
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
@@ -350,20 +350,12 @@ int main(int argc, const char **argv)
 		std::vector< uint32_t  > poolsize;
         for (size_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; ++cameraIdx) {
             pool.push_back(nullptr);
-			pool_jpeg.push_back(   (uint8_t*) malloc( max_jpeg_bytes )  );  // Allocate to max_jpeg_bytes ??
+			pool_jpeg.push_back(  nullptr  );  
 			poolsize.push_back(0);
         }
         last_frameRGBAPtr.push_back(pool);
 		last_image_compressedPtr.push_back(pool_jpeg);
 		last_image_compressed_size.push_back(poolsize);
-
-        /*dwImageProperties cameraImageProperties;
-        dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE,
-                                          cameraSensor[csiPort].sensor);
-        dwImageProperties displayImageProperties = cameraImageProperties;
-        displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
-        displayImageProperties.planeCount        = 1;*/
-
     }
 	
 	// Now we will run separate threads for each camera
@@ -371,11 +363,6 @@ int main(int argc, const char **argv)
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
         camThreads.push_back(std::thread(threadCameraPipeline, &cameraSensor[i], i, sdk, window));
     }
-	
-    // Grid (un-used for now)
-    g_imageWidth = cameraSensor[0].width;
-    g_imageHeight = cameraSensor[0].height;
-    //configureGrid(&g_grid, window->width(), window->height(), g_imageWidth, g_imageHeight, g_numCameras);
 	
     // loop through all cameras check if they have provided the first frame
     for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
@@ -388,23 +375,33 @@ int main(int argc, const char **argv)
 	
 	// ROS definitions
     int argc2 = 0; char** argv2 = nullptr;
-    ros::init(argc2, argv2, "image_publisher");
+    ros::init(argc2, argv2, "gmsl_n_cameras_node");
 	std::cerr << "  Creating ROS NODE" << std::endl;
 	
 	std::vector< std::vector<OpenCVConnector*>  >  cv_connectors;
 	// ROS: Create a topic 
-    // Topic naming scheme is port/camera_idx/image
+    // Topic naming scheme is port/camera_idx/image: Assuming they are connected in ORDER
 	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
 		std::vector<OpenCVConnector*> pool_cv_connectors;
+		//std::cout<<"cameraSensor.size()= "<<cameraSensor.size()<<"cameraSensor[csiPort].numSiblings= "<<cameraSensor[csiPort].numSiblings<<std::endl;
 		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
 				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
-				pool_cv_connectors.push_back(new OpenCVConnector(topic_raw,csiPort,cameraIdx) );
+				std::string  calib_file_path = "/home/nvidia/catkin_ws/src/ros_gmsl_driver/cfg/left.yaml";
+				pool_cv_connectors.push_back(new OpenCVConnector(topic_raw,csiPort,cameraIdx, calib_file_path ) );
 		}
 		cv_connectors.push_back( pool_cv_connectors );
 	}
 	std::cerr << "  Creating ROS publishers" << std::endl;
 	
-	ros::Rate r(30); // ? hz
+	// ROS Parameters: configuration
+	img_compressed = true;
+	if (ros::param::get(ros::this_node::getName()+"/img_compressed", img_compressed));
+	bool img_raw = false;
+	if (ros::param::get(ros::this_node::getName()+"/img_raw", img_raw));
+	int FPS = 30;
+	if (ros::param::get(ros::this_node::getName()+"/FPS", FPS));
+	
+	ros::Rate r(FPS); // ? hz
 	
     // all cameras have provided at least one frame, this thread can now start rendering
     // this is written in an asynchronous way so this thread will grab whatever current frame the camera has
@@ -413,23 +410,16 @@ int main(int argc, const char **argv)
     while(g_run && ros::ok() ) {
         for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
             for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
-			//for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){
                 if (!g_run) {
                     break;
                 }
+				if ( img_raw ){
+					takeScreenshot_to_ROS(last_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
+					}
+				if( img_compressed ){
+					takeScreenshot_to_ROS_JPEG(last_frameRGBAPtr[csiPort][cameraIdx] ,last_image_compressedPtr[csiPort][cameraIdx] ,last_image_compressed_size[csiPort][cameraIdx] , csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
+				}
 				
-				// stop to take screenshot to ROS (will cause a delay)
-				//takeScreenshot(last_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx);
-				//takeScreenshot_to_ROS(last_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
-				takeScreenshot_to_ROS_JPEG(last_frameRGBAPtr[csiPort][cameraIdx] ,last_image_compressedPtr[csiPort][cameraIdx] ,last_image_compressed_size[csiPort][cameraIdx]  ,
-												csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
-								
-				// DEBUGING run_time
-				/* if(cameraIdx == 0 && csiPort == 0 ){
-					auto timeSinceUpdate = myclock_t::now() - m_lastRunIterationTime;
-					std::cout << "     FPS?:" << 1e6f / static_cast<float32_t>(std::chrono::duration_cast<std::chrono::microseconds>(timeSinceUpdate).count()) << std::endl;
-					m_lastRunIterationTime = myclock_t::now();
-				} */
             }
         }
 				
@@ -455,7 +445,6 @@ int main(int argc, const char **argv)
 //------------------------------------------------------------------------------
 // USE THIS FUNCTION TO SAVE TO DISK EVERY SNAPSHOT
 
-
 void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling)
 {
 	// Convert to OpenCV format, Convert to to ROS images format and publish
@@ -480,17 +469,9 @@ void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t siblin
 void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t* last_image_compressedPtr, uint32_t last_image_compressedPtr_size ,
 						uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
 {
-	// Publish to ROS??
+	// Publish to ROS
 	cv_connectors->PublishJpeg( last_image_compressedPtr,  last_image_compressedPtr_size);
 	
-    NvMediaImageSurfaceMap surfaceMap;
-    //if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK){
-			//cv_connectors->WriteToRosJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-			//cv_connectors->WriteToOpenCVJpeg( (unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-		//NvMediaImageUnlock(frameNVMrgba->img);
-    /*} else {
-		std::cout << "CANNOT LOCK NVMEDIA IMAGE - NO SCREENSHOT\n";
-    } */
 }
 
 void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
@@ -499,24 +480,9 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
     NvMediaImageSurfaceMap surfaceMap;
     if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
     {
-		// Save a png file using Nvidia drivers
-			/*char fname[128];
-			sprintf(fname, "screenshot_%u_%d_%04d.png", group, sibling, gScreenshotCount);
-			lodepng_encode32_file(fname, (unsigned char*)surfaceMap.surface[0].mapping,
-					frameNVMrgba->prop.width, frameNVMrgba->prop.height);*/
-			
-			//std::cout << "SCREENSHOT TAKEN to " << fname << "\n";
-		
-		// Send the screenshot to OpenCV to push it over ROS network
-			//std::cout << "SCREENSHOT TAKEN on NVMedia" << "\n";
-			// YOUR CODE HERE
-			
 			cv_connectors->WriteToOpenCV((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-			
+		
 			//cv_connectors->WriteToRosPng((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-			
-			//std::cout << "SCREENSHOT TAKEN to OpenCV Bridge" << "\n";
-			//ros::spinOnce();
 		NvMediaImageUnlock(frameNVMrgba->img);
     }else
     {
@@ -606,12 +572,14 @@ void initSensors(std::vector<Camera> *cameras,
 
     // identify active ports
     int idx             = 0;
+	int cam_count = 0;
     int cnt[3]          = {0, 0, 0};
     std::string port[3] = {"ab", "cd", "ef"};
     for (size_t i = 0; i < selector.length() && i < 12; i++, idx++) {
         const char s = selector[i];
         if (s == '1') {
             cnt[idx / 4]++;
+			cam_count++;
         }
     }
 
@@ -623,24 +591,25 @@ void initSensors(std::vector<Camera> *cameras,
 
             params += std::string("csi-port=") + port[p];
             params += ",camera-type=" + arguments.get((std::string("type-") + port[p]).c_str());
-            params += ",camera-count=4"; // when using the mask, just ask for all cameras, mask will select properly
-
+            params += ",camera-count=" +  std::to_string( cam_count ); // use the mask to figure out the actual count of cameras
+			
             if (selector.size() >= p*4) {
                 params += ",camera-mask="+ selector.substr(p*4, std::min(selector.size() - p*4, size_t{4}));
             }
-
+			
             params += ",slave="  + arguments.get("slave");
             params += ",cross-csi-sync="  + arguments.get("cross-csi-sync");
             params += ",fifo-size="  + arguments.get("fifo-size");
-
+			
             dwSensorHandle_t salSensor = DW_NULL_HANDLE;
             dwSensorParams salParams;
             salParams.parameters = params.c_str();
             salParams.protocol = "camera.gmsl";
             //// Output size change
-				ExtImgDevParam extImgDevParam {};
+			
+				/* ExtImgDevParam extImgDevParam {};
 				extImgDevParam.resolution = const_cast<char*>( "850x544"  ); // Original resolution "1920x1208" or "1280x800". alternative resolution "850x544" 
-				salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam);
+				salParams.auxiliarydata = reinterpret_cast<void*>(&extImgDevParam); */
 			
 			result = dwSAL_createSensor(&salSensor, salParams, sal);
             if (result == DW_SUCCESS) {
@@ -658,7 +627,7 @@ void initSensors(std::vector<Camera> *cameras,
                 cam.width = cameraImageProperties.width;
                 cam.height = cameraImageProperties.height;
                 cam.numSiblings = cameraProperties.siblings;
-				std::cout<<"cam.width "<<cam.width<<" cam.height "<<cam.height<<" cam.numSiblings "<<cam.numSiblings<<std::endl; 
+				//std::cout<<"   cam.width  "<<cam.width<<"  cam.height "<<cam.height<<"  cam.numSiblings "<<cam.numSiblings<<std::endl; 
 
                 cameras->push_back(cam);
 
@@ -680,7 +649,7 @@ void initSensors(std::vector<Camera> *cameras,
 }
 
 //------------------------------------------------------------------------------
-dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
+dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t* jpeg_image,
                        dwSensorHandle_t cameraSensor,
                        uint32_t port, uint32_t sibling,
                        dwImageFormatConverterHandle_t yuv2rgba,NvMediaIJPE *jpegEncoder)
@@ -699,32 +668,26 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,
     if( result != DW_SUCCESS ){
         std::cout << "dwSensorCamera_getImageNvMedia: " << dwGetStatusName(result) << std::endl;
     }
-	//dwImageNvMedia *frameNVMrgba2;
+
     result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgba, frameNVMyuv, yuv2rgba);
     if( result != DW_SUCCESS ){
         std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;
-    } 
+    }  
 
 	// YUV encoding to JPEG 
-	NvMediaStatus nvStatus = NvMediaIJPEFeedFrame(jpegEncoder, frameNVMyuv->img, 65);
-	if(nvStatus != NVMEDIA_STATUS_OK) {
-		std::cerr <<"main: NvMediaIJPEFeedFrameQuality failed: %x\n"<<nvStatus<<  std::endl;
-	} 
-	nvStatus = NvMediaIJPEBitsAvailable(jpegEncoder, &last_image_compressed_size[port][sibling], NVMEDIA_ENCODE_BLOCKING_TYPE_IF_PENDING, 10000);
-	//last_image_compressedPtr[port][sibling] = (uint8_t*) malloc(last_image_compressed_size[port][sibling]); // We may need to remove this from here and allocate at the beginning. 
-	
-	nvStatus = NvMediaIJPEGetBits(jpegEncoder, &last_image_compressed_size[port][sibling], last_image_compressedPtr[port][sibling], 0); // Would this only copy the right size or the entire allocated pointer?
-	if(nvStatus != NVMEDIA_STATUS_OK && nvStatus != NVMEDIA_STATUS_NONE_PENDING) {
-		std::cerr <<"main: Error getting encoded bits\n"<<  std::endl;
-	} 
-		
-	/*
-	////////////// GRB channels filtering 
-	NvMedia2DBlitParameters * 	params;
-	params->filter ;
-	NvMedia2DBlitEx(NvMedia2D * i2d, frameNVMrgba, NULL, frameNVMrgba2, NULL, params, NULL);
-	///////// 
-	*/
+	if (img_compressed){
+		NvMediaStatus nvStatus = NvMediaIJPEFeedFrame(jpegEncoder, frameNVMyuv->img, 65);
+		if(nvStatus != NVMEDIA_STATUS_OK) {
+			std::cerr <<"main: NvMediaIJPEFeedFrameQuality failed: %x\n"<<nvStatus<<  std::endl;
+		}
+		nvStatus = NvMediaIJPEBitsAvailable(jpegEncoder, &last_image_compressed_size[port][sibling],NVMEDIA_ENCODE_BLOCKING_TYPE_IF_PENDING , 10000); //NVMEDIA_ENCODE_BLOCKING_TYPE_IF_PENDING
+			
+		//nvStatus = NvMediaIJPEGetBits(jpegEncoder, &last_image_compressed_size[port][sibling], last_image_compressedPtr[port][sibling], 0); // Would this only copy the right size or the entire allocated pointer?
+		nvStatus = NvMediaIJPEGetBits(jpegEncoder, &last_image_compressed_size[port][sibling], jpeg_image, 0); // Would this only copy the right size or the entire allocated pointer?
+		if(nvStatus != NVMEDIA_STATUS_OK && nvStatus != NVMEDIA_STATUS_NONE_PENDING) {
+			std::cerr <<"main: Error getting encoded bits\n"<<  std::endl;
+		} 
+	}
 	
 	
     result = dwSensorCamera_returnFrame(&frameHandle);

@@ -5,6 +5,7 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <string>
+#include <camera_info_manager/camera_info_manager.h>
 
 #include "libgpujpeg/gpujpeg.h"
 
@@ -28,6 +29,10 @@ public:
 	unsigned int counter = 0;
 	size_t csiPort;
 	uint32_t cameraIdx;
+	// Camera info
+	sensor_msgs::CameraInfo camera_info;
+	camera_info_manager::CameraInfoManager info_manager_;
+	ros::Publisher pubCamInfo;
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;
@@ -38,10 +43,11 @@ public:
 	struct gpujpeg_parameters param;
 
 	// Methods 
-	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
+	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx, std::string );
 
 	~OpenCVConnector();
 	
+	void loadCameraInfo();
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToRosPng(unsigned char*, int, int);
 	void WriteToRosJpeg(unsigned char*, int, int);
