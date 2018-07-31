@@ -19,18 +19,24 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 		it(nh), counter(0),
 		csiPort(csiPort),
 		cameraIdx(cameraIdx),
-		info_manager_(nh,topic_name,calib_file_path)	{
+		info_manager_(nh,topic_name)	{
 			
-   pub = it.advertise(topic_name, 1);
-   pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_name + std::string("/compressed"), 1);
+   pub = it.advertise(topic_name + std::string("/image"), 1);
+   pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_name + std::string("/image") + std::string("/compressed"), 1);
    
-   if (info_manager_.validateURL(calib_file_path))
-    {
-      //info_manager_.loadCameraInfo(calib_file_path);
-	  camera_info = info_manager_.getCameraInfo();
+   // Camera Info
+   //info_manager_.setCameraName(topic_name);
+   if ( info_manager_.validateURL(calib_file_path) ) {
+	   info_manager_.loadCameraInfo(calib_file_path);
+	   camera_info = info_manager_.getCameraInfo();
     }
+	else
+	{
+		// URL not valid, use the old one
+		std::cerr<<"Calibration URL not valid "+calib_file_path<<std::endl;
+	}
 	
-    //pubCamInfo = nh.advertise<sensor_msgs::CameraInfo>(topic_name + std::string("/camera_info"), 1);
+    pubCamInfo = nh.advertise<sensor_msgs::CameraInfo>(topic_name + std::string("/camera_info"), 1);
 
    // GPUJPEG encoder
 	/* gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
@@ -74,7 +80,7 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
     header.stamp = ros::Time::now(); // time
 		
 	// Formatting directly the message no OpenCV
-	
+	img_msg.header = header;
 	img_msg.height = height;
 	img_msg.width = width;
 	img_msg.encoding = sensor_msgs::image_encodings::RGBA8;
@@ -92,7 +98,9 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
     ///pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGBA8 , mat_img).toImageMsg()  ); 
 	
 	pub.publish( ptr );
-	//pubCamInfo.publish(  camera_info );
+	
+	camera_info = info_manager_.getCameraInfo();
+	pubCamInfo.publish(  camera_info );
 
 	//counter ++;
 	
@@ -113,7 +121,7 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	c_img_msg.format = "jpeg";
 	
     pub_comp.publish(  c_img_msg  );
-	//pubCamInfo.publish(  camera_info );
+	pubCamInfo.publish(  camera_info );
 }
 	
 

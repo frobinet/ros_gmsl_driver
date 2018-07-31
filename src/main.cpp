@@ -385,8 +385,8 @@ int main(int argc, const char **argv)
 		std::vector<OpenCVConnector*> pool_cv_connectors;
 		//std::cout<<"cameraSensor.size()= "<<cameraSensor.size()<<"cameraSensor[csiPort].numSiblings= "<<cameraSensor[csiPort].numSiblings<<std::endl;
 		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
-				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx) + std::string("/image"); 
-				std::string  calib_file_path = "/home/nvidia/catkin_ws/src/ros_gmsl_driver/cfg/left.yaml";
+				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx); 
+				std::string  calib_file_path = "file:///home/nvidia/catkin_ws/src/ros_gmsl_driver/cfg/left.yaml";
 				pool_cv_connectors.push_back(new OpenCVConnector(topic_raw,csiPort,cameraIdx, calib_file_path ) );
 		}
 		cv_connectors.push_back( pool_cv_connectors );
