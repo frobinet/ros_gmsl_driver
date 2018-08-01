@@ -366,7 +366,7 @@ int main(int argc, const char **argv)
 	// Now we will run separate threads for each camera
     std::vector<std::thread> camThreads;
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
-        camThreads.push_back(std::thread(threadCameraPipeline, &cameraSensor[i], i, sdk, window));
+        camThreads.push_back(  std::thread(threadCameraPipeline, &cameraSensor[i], i, sdk, window)  );
     }
 	
     // loop through all cameras check if they have provided the first frame
@@ -462,7 +462,14 @@ int main(int argc, const char **argv)
     for (uint32_t i = 0; i < cameraSensor.size(); ++i) {
         camThreads.at(i).join();
     }
-
+	
+	// terminate camera rectifiers threads
+	/* for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
+		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
+				cv_connectors[csiPort][cameraIdx]->camera_rect->join();
+		}
+	} */
+	
 
     // release used objects in correct order
     dwSAL_release(&sal);

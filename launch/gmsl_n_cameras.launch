@@ -1,5 +1,5 @@
 <launch>
-<!--   
+	<!--   
 		 This file launches a node that publishes images from Sekonix GMSL cameras on a DrivePX2 to rostopics 
 		 Once running, each camera group has a node running under /camera/<groupidx>.
 		 For each camera group, the cameras are published under /camera/<groupidx>/<cameraidx> starting
@@ -37,7 +37,17 @@
 				
 				The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
 				-->
-		
 	</node>
+	
+	## Camera rectifications
+	<!-- <group ns="gmsl_camera">
+		<node pkg="nodelet" type="nodelet" name="gmsl_camera" args="standalone image_proc/resize" respawn="true">
+            <remap from="image" to="/gmsl_camera/port_0/cam_1/image_raw"/>
+            <remap from="camera_info" to="/gmsl_camera/port_1/cam_0/image_raw/compressed"/>
+        </node> 
+	
+	</group>-->
+	
+	
 		
 </launch>

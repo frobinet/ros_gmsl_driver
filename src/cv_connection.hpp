@@ -5,6 +5,11 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <string>
+#include <iostream>
+#include <utility>
+#include <thread>
+#include <chrono>
+
 #include <camera_info_manager/camera_info_manager.h>
 
 #include "libgpujpeg/gpujpeg.h"
@@ -34,6 +39,8 @@ public:
 	camera_info_manager::CameraInfoManager info_manager_;
 	ros::Publisher pubCamInfo;
 	bool do_rectify;
+	// camera rect
+	std::thread* camera_rect;
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;
