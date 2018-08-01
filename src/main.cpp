@@ -101,11 +101,16 @@ uint32_t g_numCameras;
 
 // Output data: 2D vectors to represent an array (grid) of cameras) or images feed
 std::vector<std::vector<dwImageNvMedia*>> last_frameRGBAPtr;
+
 std::vector<std::vector<uint8_t*>>	 last_image_compressedPtr; // Allocate to max_jpeg_bytes ??
 std::vector<std::vector< uint32_t  >>  last_image_compressed_size;
-
 uint32_t max_jpeg_bytes = (10 * 1024 * 1024);  // maximum bytes that JPEG encoder can produce for each feed frame. Set to uint8_t s 1920*1208*3*1 ??
+
+// ROS Parameters: configuration
 bool img_compressed = false;
+int JPEG_quality = 65;
+
+
 // combine by camera sensor, which might have camera siblings
 struct Camera {
     dwSensorHandle_t sensor;
@@ -378,21 +383,8 @@ int main(int argc, const char **argv)
     ros::init(argc2, argv2, "gmsl_n_cameras_node");
 	std::cerr << "  Creating ROS NODE" << std::endl;
 	
-	std::vector< std::vector<OpenCVConnector*>  >  cv_connectors;
-	// ROS: Create a topic 
-    // Topic naming scheme is port/camera_idx/image: Assuming they are connected in ORDER
-	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
-		std::vector<OpenCVConnector*> pool_cv_connectors;
-		//std::cout<<"cameraSensor.size()= "<<cameraSensor.size()<<"cameraSensor[csiPort].numSiblings= "<<cameraSensor[csiPort].numSiblings<<std::endl;
-		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
-				const std::string topic_raw = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx); 
-				std::string  calib_file_path = "file:///home/nvidia/catkin_ws/src/ros_gmsl_driver/cfg/left.yaml";
-				pool_cv_connectors.push_back(new OpenCVConnector(topic_raw,csiPort,cameraIdx, calib_file_path ) );
-		}
-		cv_connectors.push_back( pool_cv_connectors );
-	}
-	std::cerr << "  Creating ROS publishers" << std::endl;
 	
+
 	// ROS Parameters: configuration
 	img_compressed = true;
 	if (ros::param::get(ros::this_node::getName()+"/img_compressed", img_compressed));
@@ -400,6 +392,47 @@ int main(int argc, const char **argv)
 	if (ros::param::get(ros::this_node::getName()+"/img_raw", img_raw));
 	int FPS = 30;
 	if (ros::param::get(ros::this_node::getName()+"/FPS", FPS));
+	JPEG_quality = 65;
+	if (ros::param::get(ros::this_node::getName()+"/JPEG_quality", JPEG_quality));
+	bool do_rectify = true;
+	if (ros::param::get(ros::this_node::getName()+"/do_rectify", do_rectify));
+	std::string camera_type_names;
+	if (ros::param::get(ros::this_node::getName()+"/camera_type_names", camera_type_names));
+	
+	std::cerr << "  ROS parameters loaded" << std::endl;
+
+	// Parse camera types
+	std::stringstream camera_type_names_ss( camera_type_names );
+	std::vector<std::string> camera_types;
+	std::string str_in;
+	while( getline(camera_type_names_ss, str_in , ',') ){
+		camera_types.push_back(str_in);
+	}
+	// Parse camera cgf path
+	std::stringstream file_path_ss(__FILE__);
+	std::vector<std::string> drv_path_v;
+	std::string drv_path;
+	while( getline(file_path_ss, str_in , '/') ){
+		drv_path_v.push_back( str_in+"/");
+	}
+	drv_path = accumulate( begin(drv_path_v) ,end(drv_path_v)-2 , drv_path);
+
+	// ROS: Create a topic 
+    // Topic naming scheme is port/camera_idx/image: Assuming they are connected in ORDER
+	std::vector< std::vector<OpenCVConnector*>  >  cv_connectors;
+	int idx = 0;
+	for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
+		std::vector<OpenCVConnector*> pool_cv_connectors;
+		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
+				const std::string topic_base = std::string("gmsl_camera/port_") + std::to_string(csiPort) + std::string("/cam_") + std::to_string(cameraIdx); 
+				std::string calib_file_path = "file://"+drv_path+"cfg/"+camera_types[idx]+".yaml"; // Creating the camera config path
+				
+				pool_cv_connectors.push_back( new OpenCVConnector( topic_base ,csiPort,cameraIdx, calib_file_path, camera_types[idx] , do_rectify ) );
+				idx++;
+		}
+		cv_connectors.push_back( pool_cv_connectors );
+	}
+	std::cerr << "  Creating ROS publishers" << std::endl;
 	
 	ros::Rate r(FPS); // ? hz
 	
@@ -676,7 +709,7 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t* jpeg_image,
 
 	// YUV encoding to JPEG 
 	if (img_compressed){
-		NvMediaStatus nvStatus = NvMediaIJPEFeedFrame(jpegEncoder, frameNVMyuv->img, 65);
+		NvMediaStatus nvStatus = NvMediaIJPEFeedFrame(jpegEncoder, frameNVMyuv->img,  JPEG_quality );
 		if(nvStatus != NVMEDIA_STATUS_OK) {
 			std::cerr <<"main: NvMediaIJPEFeedFrameQuality failed: %x\n"<<nvStatus<<  std::endl;
 		}

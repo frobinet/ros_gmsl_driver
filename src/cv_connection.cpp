@@ -15,25 +15,25 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <camera_info_manager/camera_info_manager.h>
 
-OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx,std::string calib_file_path) : 
+OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx,std::string calib_file_path , std::string camera_type_name, bool rectif_flag ) : 
 		it(nh), counter(0),
 		csiPort(csiPort),
 		cameraIdx(cameraIdx),
-		info_manager_(nh,topic_name)	{
-			
-   pub = it.advertise(topic_name + std::string("/image"), 1);
-   pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_name + std::string("/image") + std::string("/compressed"), 1);
-   
+		info_manager_(  ros::NodeHandle( topic_name ) , camera_type_name ),
+		do_rectify(rectif_flag)		{
+	
+	pub = it.advertise(topic_name + std::string("/image_raw"), 1);
+	pub_comp = nh.advertise<sensor_msgs::CompressedImage>(topic_name + std::string("/image_raw") + std::string("/compressed"), 1);
+	
    // Camera Info
    //info_manager_.setCameraName(topic_name);
    if ( info_manager_.validateURL(calib_file_path) ) {
 	   info_manager_.loadCameraInfo(calib_file_path);
 	   camera_info = info_manager_.getCameraInfo();
     }
-	else
-	{
+	else {
 		// URL not valid, use the old one
-		std::cerr<<"Calibration URL not valid "+calib_file_path<<std::endl;
+		std::cerr<<"Calibration URL not valid @ "+topic_name+" : "+calib_file_path<<std::endl;
 	}
 	
     pubCamInfo = nh.advertise<sensor_msgs::CameraInfo>(topic_name + std::string("/camera_info"), 1);
@@ -100,6 +100,7 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	pub.publish( ptr );
 	
 	camera_info = info_manager_.getCameraInfo();
+	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
 
 	//counter ++;
@@ -120,6 +121,7 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	
 	c_img_msg.format = "jpeg";
 	
+	camera_info.roi.do_rectify=true;
     pub_comp.publish(  c_img_msg  );
 	pubCamInfo.publish(  camera_info );
 }

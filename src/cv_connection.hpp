@@ -33,6 +33,7 @@ public:
 	sensor_msgs::CameraInfo camera_info;
 	camera_info_manager::CameraInfoManager info_manager_;
 	ros::Publisher pubCamInfo;
+	bool do_rectify;
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;
@@ -43,7 +44,7 @@ public:
 	struct gpujpeg_parameters param;
 
 	// Methods 
-	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx, std::string );
+	OpenCVConnector( std::string topic_name,size_t csiPort, uint32_t cameraIdx, std::string , std::string camera_type_name , bool do_rectify);
 
 	~OpenCVConnector();
 	

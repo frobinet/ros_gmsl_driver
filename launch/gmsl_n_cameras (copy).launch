@@ -1,0 +1,27 @@
+<launch>
+# This driver assumes you are connecting the cameras always in order 0,1,2.... in every port
+
+<arg name="selector-mask" value="01110001" /> # In reversed order by port. E.g. the mask corresponds to the order [cam3,cam2,cam1,cam0] of every port. 
+												# E.g. if connect in order 2 cameras on port AB on slots 0 and 1 and; 2 cameras in order on port CD on slots 0 and 1. Mask would be: 00110011
+												# E.g. if connect in order  3 cameras on port AB on slots 0,1 and 2;  1 camera  on port CD on slots 0. Mask would be: 01110001
+<!-- 
+     This file launches a node that publishes images from GMSL cameras on a DrivePX2 to rostopics 
+     Once running, each camera group has a node running under /camera/<groupidx>.
+     For each camera group, the cameras are published under /camera/<groupidx>/<cameraidx> starting
+     with  port 0, 1, 2, 3. Note that a camera's images will be published under the next available topic
+     number even if not all four cameras are attached to a group. Likewise, if a camera group is skipped
+     that camera's group number will be used for the next topic
+-->
+	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"> 
+		<!-- Parameters-->
+		<param name="img_compressed" type="bool" value="false" />
+		<param name="JPEG_quality" type="int" value="65" /> 
+		<param name="img_raw" type="bool" value="true" />
+		<param name="FPS" type="int" value="30" />
+		<!--  Rectification parameters -->
+		<param name="do_rectify" type="bool" value="true" />
+		
+		
+	</node>
+		
+</launch>
