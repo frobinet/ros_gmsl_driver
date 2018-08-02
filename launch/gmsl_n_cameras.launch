@@ -23,20 +23,19 @@
 		<param name="JPEG_quality" type="int" value="65" /> 
 		<param name="img_raw" type="bool" value="true" />
 		<param name="FPS" type="int" value="30" />
-		# Rectification parameters
-			<param name="do_rectify" type="bool" value="true" />
+		# Parameters for camera calibration> Necessary if you need to rectify 
+		<param name="do_rectify" type="bool" value="true" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does
+		<rosparam param="camera_type_names" subst_value="True">"sixty,fish_eye,fish_eye,onetwenty"</rosparam> # How to set camera_type_names?
+		<!--  This parameters tells the driver the kind of camera you have connected.
+			* fish_eye: Sekonix NA1962 190x150 deg FOV
+			* onetwenty: Sekonix NA1262 120x73 deg FOV
+			* sixty: Sekonix NA6062 60x38 deg FOV
 			
-			<rosparam param="camera_type_names" subst_value="True">"sixty,fish_eye,fish_eye,onetwenty"</rosparam> # How to set camera_type_names?
-			<!--  This parameters tells the driver the kind of camera you have connected.
-				* fish_eye: Sekonix NA1962 190x150 deg FOV
-				* onetwenty: Sekonix NA1262 120x73 deg FOV
-				* sixty: Sekonix NA6062 60x38 deg FOV
-				
-				Independently of the ports you are using, you should specify in order the type of camera:
-				E.g. If you connect a sixty in port 0 slot 0, fish_eye cameras in port 0 in slots 1 and 2 and a "onetwenty" in port 1 slot 0: camera_type_names should be set to  "sixty,fish_eye,fish_eye,onetwenty"
-				
-				The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
-				-->
+			Independently of the ports you are using, you should specify in order the type of camera:
+			E.g. If you connect a sixty in port 0 slot 0, fish_eye cameras in port 0 in slots 1 and 2 and a "onetwenty" in port 1 slot 0: camera_type_names should be set to  "sixty,fish_eye,fish_eye,onetwenty"
+			
+			The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
+			-->
 	</node>
 	
 	## Camera rectifications

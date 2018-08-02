@@ -1,0 +1,13 @@
+<launch>
+	## Camera rectifications
+	<group ns="gmsl_camera_rect">
+		<node pkg="nodelet" type="nodelet" name="gmsl_camera" args="standalone image_proc/resize" respawn="true">
+            <remap from="image" to="/gmsl_camera/port_0/cam_1/image_raw"/>
+            <remap from="camera_info" to="/gmsl_camera/port_1/cam_0/image_raw/compressed"/>
+        </node> 
+	
+	</group>
+	
+	
+		
+</launch>
