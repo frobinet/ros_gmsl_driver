@@ -56,6 +56,7 @@ public:
 	
 	void loadCameraInfo();
 	void WriteToOpenCV(unsigned char*, int, int);
+	void WriteToOpenCV_reduced(unsigned char*, int, int);
 	void WriteToRosPng(unsigned char*, int, int);
 	void WriteToRosJpeg(unsigned char*, int, int);
 	void WriteToOpenCVJpeg(unsigned char*, int, int);

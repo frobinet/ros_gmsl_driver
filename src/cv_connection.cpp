@@ -116,6 +116,26 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 
 }
 
+void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, int height) {
+	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
+	cv::resize(mat_img, mat_img,  cv::Size(1280,800), 0, 0, CV_INTER_LINEAR); //
+	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
+	
+    std_msgs::Header header; // empty header
+    header.seq = counter; // user defined counter
+    header.stamp = ros::Time::now(); // time
+	
+	//sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(mat_img).toImageMsg();
+    pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8 , mat_img).toImageMsg()  ); 
+	
+	camera_info = info_manager_.getCameraInfo();
+	camera_info.header = header;
+	camera_info.roi.do_rectify = do_rectify;
+	pubCamInfo.publish(  camera_info );
+
+	//counter ++;
+
+}
 void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_compressed_size) {
 	sensor_msgs::CompressedImage c_img_msg; 
 	
