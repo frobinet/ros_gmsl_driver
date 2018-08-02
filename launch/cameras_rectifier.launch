@@ -1,0 +1,51 @@
+<launch>
+	## Camera rectifications
+	<group ns="gmsl_camera">
+		<group ns="port_0">
+			<node ns="cam_0" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_1" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_2" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_3" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+		</group>
+		
+		<group ns="port_1">
+			<node ns="cam_0" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_1" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_2" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_3" pkg="image_proc" type="image_proc" name="image_proc">
+				<remap from="image_raw"  to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+		</group>
+		
+	</group>
+	
+	
+	
+	
+	
+	
+	
+		
+</launch>

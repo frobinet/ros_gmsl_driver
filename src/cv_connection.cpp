@@ -108,6 +108,7 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	pub.publish( ptr );
 	
 	camera_info = info_manager_.getCameraInfo();
+	camera_info.header = header;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
 
@@ -128,9 +129,10 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	
 	c_img_msg.format = "jpeg";
 	
-	camera_info.roi.do_rectify=true;
-    pub_comp.publish(  c_img_msg  );
-	pubCamInfo.publish(  camera_info );
+	pub_comp.publish(  c_img_msg  );
+	
+	/* camera_info.roi.do_rectify=true;
+	pubCamInfo.publish(  camera_info ); */
 }
 	
 

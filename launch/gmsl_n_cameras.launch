@@ -23,8 +23,9 @@
 		<param name="JPEG_quality" type="int" value="65" /> 
 		<param name="img_raw" type="bool" value="true" />
 		<param name="FPS" type="int" value="30" />
-		# Parameters for camera calibration> Necessary if you need to rectify 
-		<param name="do_rectify" type="bool" value="true" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does
+		# Parameters for camera calibration: Necessary if you need to rectify 
+		<param name="do_rectify" type="bool" value="false" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does
+															  #   To rectify images, use cameras_rectifier.launch (in other computer in the network) or gmsl_n_cameras_rectifier.launch in PX2
 		<rosparam param="camera_type_names" subst_value="True">"sixty,fish_eye,fish_eye,onetwenty"</rosparam> # How to set camera_type_names?
 		<!--  This parameters tells the driver the kind of camera you have connected.
 			* fish_eye: Sekonix NA1962 190x150 deg FOV
@@ -37,21 +38,5 @@
 			The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
 			-->
 	</node>
-	
-	## Camera rectifications
-	<group ns="gmsl_camera">
-		<!-- <node pkg="nodelet" type="nodelet" name="gmsl_camera" args="standalone image_proc/rectify" respawn="true">
-            <remap from="image_mono " to="/gmsl_camera/port_0/cam_1/image_raw"/>
-            <remap from="camera_info" to="/gmsl_camera/port_0/cam_1/image_raw/camera_info"/>
-        </node> -->
-		
-		<!-- <node pkg="image_proc" type="image_proc" name="image_proc">
-            <remap from="image_raw "  to="/gmsl_camera/port_0/cam_1/image_raw"/>
-            <remap from="camera_info" to="/gmsl_camera/port_0/cam_1/image_raw/camera_info"/>
-        </node> -->
-	
-	</group>
-	
-	
 		
 </launch>

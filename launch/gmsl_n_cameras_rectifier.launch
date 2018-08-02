@@ -1,18 +1,83 @@
 <launch>
+	<!--   
+		 This file launches a node that publishes images from Sekonix GMSL cameras on a DrivePX2 to rostopics 
+		 Once running, each camera group has a node running under /camera/<groupidx>.
+		 For each camera group, the cameras are published under /camera/<groupidx>/<cameraidx> starting
+		 with  port 0, 1, 2, 3. Note that a camera's images will be published under the next available topic
+		 number even if not all four cameras are attached to a group. Likewise, if a camera group is skipped
+		 that camera's group number will be used for the next topic.
+		 
+		This driver assumes you are connecting the cameras always in order 0,1,2.... in every port (port = group).
+	-->
+	# Arguments
+	<arg name="selector-mask" value="01110001" /> # This allows you to connect any camera at any port.
+												# In reversed order by port. E.g. the mask corresponds to the order [cam3,cam2,cam1,cam0] of every port. 
+												# E.g. if you connect 2 cameras on port AB on slots 0 and 1 and; 2 cameras on port CD on slots 0 and 1. Mask would be: 00110011
+												# E.g. if you connect 3 cameras on port AB on slots 0,1 and 2;  1 camera on port CD on slots 0. Mask would be: 01110001
+												# E.g. you should NOT connect 3 cameras on port AB on slots 1,2 and 3, because you are skipping slot 0. 
+												#         ALWAYS connect cameras in order 0,1,2.... in every port. This driver assumes cameras are connected in order.
+	# Nodes
+	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"> 
+		# Parameters
+		<param name="img_compressed" type="bool" value="false" />
+		<param name="JPEG_quality" type="int" value="65" /> 
+		<param name="img_raw" type="bool" value="true" />
+		<param name="FPS" type="int" value="30" />
+		# Parameters for camera calibration> Necessary if you need to rectify 
+		<param name="do_rectify" type="bool" value="true" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does
+		<rosparam param="camera_type_names" subst_value="True">"sixty,fish_eye,fish_eye,onetwenty"</rosparam> # How to set camera_type_names?
+		<!--  This parameters tells the driver the kind of camera you have connected.
+			* fish_eye: Sekonix NA1962 190x150 deg FOV
+			* onetwenty: Sekonix NA1262 120x73 deg FOV
+			* sixty: Sekonix NA6062 60x38 deg FOV
+			
+			Independently of the ports you are using, you should specify in order the type of camera:
+			E.g. If you connect a sixty in port 0 slot 0, fish_eye cameras in port 0 in slots 1 and 2 and a "onetwenty" in port 1 slot 0: camera_type_names should be set to  "sixty,fish_eye,fish_eye,onetwenty"
+			
+			The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
+			-->
+	</node>
+	
 	## Camera rectifications
-	<group ns="gmsl_camera_rect">
-		<node pkg="nodelet" type="nodelet" name="gmsl_camera" args="standalone image_proc/rectify" respawn="true">
-            <remap from="image_mono " to="/gmsl_camera/port_0/cam_1/image_raw"/>
-            <remap from="camera_info" to="/gmsl_camera/port_0/cam_1/image_raw/camera_info"/>
-        </node> 
+	<group ns="gmsl_camera">
+		<group ns="port_0">
+			<node ns="cam_0" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_1" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_2" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_3" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+		</group>
 		
-		<node pkg="image_proc" type="image_proc" name="image_proc">
-            <remap from="image_raw "  to="/gmsl_camera/port_0/cam_2/image_raw"/>
-            <remap from="camera_info" to="/gmsl_camera/port_0/cam_2/image_raw/camera_info"/>
-        </node>
+		<group ns="port_1">
+			<node ns="cam_0" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_1" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_2" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+			<node ns="cam_3" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">
+				<remap from="image_mono" to="image_raw"/>
+				<remap from="camera_info" to="camera_info"/>
+			</node>
+		</group>
 		
 	</group>
-	
-	
 		
 </launch>
