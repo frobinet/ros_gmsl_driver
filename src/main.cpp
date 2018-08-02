@@ -463,14 +463,6 @@ int main(int argc, const char **argv)
         camThreads.at(i).join();
     }
 	
-	// terminate camera rectifiers threads
-	/* for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
-		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; cameraIdx++) {
-				cv_connectors[csiPort][cameraIdx]->camera_rect->join();
-		}
-	} */
-	
-
     // release used objects in correct order
     dwSAL_release(&sal);
 

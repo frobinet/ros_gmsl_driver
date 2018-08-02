@@ -33,7 +33,7 @@
 				* sixty: Sekonix NA6062 60x38 deg FOV
 				
 				Independently of the ports you are using, you should specify in order the type of camera:
-				E.g. If you connect a sixty in port 0 slot 0, fish_eye cameras in port 0 in slots 1 and 2 and a onetwenty in port 1 slot 0: camera_type_names should be set to  "sixty,fish_eye,fish_eye,onetwenty"
+				E.g. If you connect a sixty in port 0 slot 0, fish_eye cameras in port 0 in slots 1 and 2 and a "onetwenty" in port 1 slot 0: camera_type_names should be set to  "sixty,fish_eye,fish_eye,onetwenty"
 				
 				The corresponding calibration files (.yaml files) should have the same name and be placed in "cfg" folder.
 				-->

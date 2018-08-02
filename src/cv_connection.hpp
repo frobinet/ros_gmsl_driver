@@ -39,8 +39,7 @@ public:
 	camera_info_manager::CameraInfoManager info_manager_;
 	ros::Publisher pubCamInfo;
 	bool do_rectify;
-	// camera rect
-	std::thread* camera_rect;
+	
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;

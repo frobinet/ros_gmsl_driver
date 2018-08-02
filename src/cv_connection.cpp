@@ -22,24 +22,6 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <camera_info_manager/camera_info_manager.h>
 
-std::string exec(const char* cmd) {
-    std::array<char, 128> buffer;
-    std::string result;
-    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
-    if (!pipe) throw std::runtime_error("popen() failed!");
-    while (!feof(pipe.get())) {
-        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
-            result += buffer.data();
-    }
-    return result;
-}
-
-void run_image_proc( std::string topic_name ){
-	std::string command = "ROS_NAMESPACE="+topic_name+" rosrun image_proc image_proc";
-	std::cout<<command<<std::endl;
-
-}
-
 
 OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t cameraIdx,std::string calib_file_path , std::string camera_type_name, bool rectif_flag ) : 
 		it(nh), counter(0),
@@ -63,13 +45,7 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 	}
 	
     pubCamInfo = nh.advertise<sensor_msgs::CameraInfo>(topic_name + std::string("/camera_info"), 1);
-	
-	// Rectification 
-	if(do_rectify){
-		//std::thread camera_rect_( run_image_proc, topic_name );
-		//camera_rect = &camera_rect_;
-	}
-		
+			
 	
 	
    // GPUJPEG encoder
@@ -136,7 +112,6 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	pubCamInfo.publish(  camera_info );
 
 	//counter ++;
-	
 
 }
 
