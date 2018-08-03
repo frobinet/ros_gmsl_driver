@@ -21,7 +21,11 @@
 		# Parameters
 		<param name="img_compressed" type="bool" value="false" />
 		<param name="JPEG_quality" type="int" value="65" /> 
-		<param name="img_raw" type="bool" value="true" />
+		
+		<param name="img_raw" type="bool" value="true"/>
+		
+		<param name="img_raw_downsample" type="bool" value="false" /> # You cannot rectify if you downsample (for the moment)
+		
 		<param name="FPS" type="int" value="30" />
 		# Parameters for camera calibration> Necessary if you need to rectify 
 		<param name="do_rectify" type="bool" value="true" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does

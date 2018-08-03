@@ -394,7 +394,7 @@ int main(int argc, const char **argv)
 	if (ros::param::get(ros::this_node::getName()+"/img_raw", img_raw));
 	int FPS = 30;
 	if (ros::param::get(ros::this_node::getName()+"/FPS", FPS));
-	bool img_raw_downsample;
+	bool img_raw_downsample = false;
 	if (ros::param::get(ros::this_node::getName()+"/img_raw_downsample", img_raw_downsample));
 	
 	JPEG_quality = 65;
@@ -403,8 +403,6 @@ int main(int argc, const char **argv)
 	if (ros::param::get(ros::this_node::getName()+"/do_rectify", do_rectify));
 	std::string camera_type_names;
 	if (ros::param::get(ros::this_node::getName()+"/camera_type_names", camera_type_names));
-	
-	
 	
 	
 	std::cerr << "  ROS parameters loaded" << std::endl;
@@ -638,7 +636,6 @@ void initSensors(std::vector<Camera> *cameras,
         const char s = selector[i];
         if (s == '1') {
             cnt[idx / 4]++;
-			cam_count++;
         }
     }
 
@@ -650,7 +647,7 @@ void initSensors(std::vector<Camera> *cameras,
 
             params += std::string("csi-port=") + port[p];
             params += ",camera-type=" + arguments.get((std::string("type-") + port[p]).c_str());
-            params += ",camera-count=" +  std::to_string( cam_count ); // use the mask to figure out the actual count of cameras
+            params += ",camera-count=" +  std::to_string( cnt[p] ); // use the mask to figure out the actual count of cameras
 			
             if (selector.size() >= p*4) {
                 params += ",camera-mask="+ selector.substr(p*4, std::min(selector.size() - p*4, size_t{4}));
