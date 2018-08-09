@@ -27,11 +27,11 @@ catkin_make
 ## gmsl_n_cameras_node
 This node gets GMSL cameras frames and publishes them into ROS topics
 ### Publish
-	~image_raw (sensor_msgs/Image)
+   	~image_raw (sensor_msgs/Image)
 	~image_raw/compressed (sensor_msgs/CompressedImage)
 	~camera_info (sensor_msgs/CameraInfo)
 ### Argumetns
-selector-mask: This allows you to connect any camera at any port. E.g. "0111" to connect cameras 0,1 and 2 of port 0
+	selector-mask: This allows you to connect any camera at any port. E.g. "0111" to connect cameras 0,1 and 2 of port 0
 ### Parameters
 	~img_compressed (bool: default false) select to pusblish JPEG compressed images.
 	~JPEG_quality (int: default 65) quality of JPEGs being produced.
