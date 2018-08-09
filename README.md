@@ -2,8 +2,9 @@
 A ROS driver for GMSL cameras on [Drive PX platform](https://www.nvidia.com/en-us/self-driving-cars/drive-platform/)
 
 ## Performance
-* JPEG images compresion: +7 cameras @ 30FPS with 4MB/s each camera of network bandwith usage. This is ideal for loging JPEGs on a separate computer on same network as Drive PX
-* Raw images 1920x1208px: 4 cameras @ ~15FPS on same Tegra as driver
+* JPEG images compression: tested with 7 cameras giving 30FPS with 4MB/s each camera of network bandwith usage. This is ideal for loging JPEGs on a separate computer on same network as Drive PX
+* Raw images 1920x1208px: tested with 4 cameras giving ~15FPS on same Tegra as driver
+* Raw images 1920x1208px rectified with [image_proc_tegra](https://github.com/DavidTorresOcana/image_proc_tegra) on same Tegra as driver: tested with 2 cameras giving ~15FPS on same Tegra as driver
 
 ## Getting Started
 
@@ -38,11 +39,11 @@ selector-mask: This allows you to connect any camera at any port. E.g. "0111" to
 ~img_raw_downsample (bool: default false) select to publish raw 1280x800px RGB images. You cannot rectify if you downsample (for the moment)
 ~FPS (int: default 30) select how many FPS needs to be produced. It may not possible to achieve the required FPS in case of CPU shortage
 ~do_rectify (bool: default false) publish the flag "do_rectify" on ~camera_info topic.
-~camera_type_names (string: default "") list of commaseparated strings, describing the type of cmera conected in eahc port. This parameters tells the driver the kind of camera you have connected in each port. Ports are considered to be connected in order.
+~camera_type_names (string: default "") list of comma-separated strings, describing the type of cmera conected in eahc port. This parameters tells the driver the kind of camera you have connected in each port. Ports are considered to be connected in order.
 			* fish_eye: Sekonix NA1962 190x150 deg FOV
 			* onetwenty: Sekonix NA1262 120x73 deg FOV
 			* sixty: Sekonix NA6062 60x38 deg FOV
-
+For more explanation, please read the launchfiles
 ### Usage
 Use launchfiles on ~launch folder to configure the node appropriately 
 ```
