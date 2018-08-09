@@ -27,19 +27,19 @@ catkin_make
 ## gmsl_n_cameras_node
 This node gets GMSL cameras frames and publishes them into ROS topics
 ### Publish
-~image_raw (sensor_msgs/Image)
-~image_raw/compressed (sensor_msgs/CompressedImage)
-~camera_info (sensor_msgs/CameraInfo)
+	~image_raw (sensor_msgs/Image)
+	~image_raw/compressed (sensor_msgs/CompressedImage)
+	~camera_info (sensor_msgs/CameraInfo)
 ### Argumetns
 selector-mask: This allows you to connect any camera at any port. E.g. "0111" to connect cameras 0,1 and 2 of port 0
 ### Parameters
-~img_compressed (bool: default false) select to pusblish JPEG compressed images.
-~JPEG_quality (int: default 65) quality of JPEGs being produced.
-~img_raw (bool: default false) select to publish raw 1920x1208px RGBA images.
-~img_raw_downsample (bool: default false) select to publish raw 1280x800px RGB images. You cannot rectify if you downsample (for the moment)
-~FPS (int: default 30) select how many FPS needs to be produced. It may not possible to achieve the required FPS in case of CPU shortage
-~do_rectify (bool: default false) publish the flag "do_rectify" on ~camera_info topic.
-~camera_type_names (string: default "") list of comma-separated strings, describing the type of cmera conected in eahc port. This parameters tells the driver the kind of camera you have connected in each port. Ports are considered to be connected in order.
+	~img_compressed (bool: default false) select to pusblish JPEG compressed images.
+	~JPEG_quality (int: default 65) quality of JPEGs being produced.
+	~img_raw (bool: default false) select to publish raw 1920x1208px RGBA images.
+	~img_raw_downsample (bool: default false) select to publish raw 1280x800px RGB images. You cannot rectify if you downsample (for the moment)
+	~FPS (int: default 30) select how many FPS needs to be produced. It may not possible to achieve the required FPS in case of CPU shortage
+	~do_rectify (bool: default false) publish the flag "do_rectify" on ~camera_info topic.
+	~camera_type_names (string: default "") list of comma-separated strings, describing the type of cmera conected in eahc port. This parameters tells the driver the kind of camera you have connected in each port. Ports are considered to be connected in order.
 			* fish_eye: Sekonix NA1962 190x150 deg FOV
 			* onetwenty: Sekonix NA1262 120x73 deg FOV
 			* sixty: Sekonix NA6062 60x38 deg FOV
