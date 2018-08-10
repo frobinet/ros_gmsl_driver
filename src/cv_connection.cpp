@@ -78,9 +78,9 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 
 }
 
-void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, int height) {
+void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, int height,int downsample_width , int downsample_height) {
 	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
-	cv::resize(mat_img, mat_img,  cv::Size(1280,800), 0, 0, CV_INTER_LINEAR); //
+	cv::resize(mat_img, mat_img,  cv::Size(downsample_width ,downsample_height), 0, 0, CV_INTER_LINEAR); //
 	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
 	
     std_msgs::Header header; // empty header
@@ -92,8 +92,8 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	
 	camera_info = info_manager_.getCameraInfo();
 	camera_info.header = header;
-	camera_info.height = 800;
-	camera_info.width = 1280;
+	camera_info.height = downsample_height;
+	camera_info.width = downsample_width;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
 	

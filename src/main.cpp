@@ -128,7 +128,7 @@ struct Camera {
 int main(int argc, const char **argv);
 void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling);
 void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
-void takeScreenshot_to_ROS_down(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors);
+void takeScreenshot_to_ROS_down(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors, int,int);
 
 void takeScreenshot_to_ROS_JPEG(dwImageNvMedia *frameNVMrgba, uint8_t* , uint32_t , uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors );
 
@@ -394,6 +394,10 @@ int main(int argc, const char **argv)
 	if (ros::param::get(ros::this_node::getName()+"/FPS", FPS));
 	bool img_raw_downsample = false;
 	if (ros::param::get(ros::this_node::getName()+"/img_raw_downsample", img_raw_downsample));
+	int img_downsample_width = 1200;
+	if (ros::param::get(ros::this_node::getName()+"/img_downsample_width", img_downsample_width));
+	int img_downsample_height = 800;
+	if (ros::param::get(ros::this_node::getName()+"/img_downsample_height", img_downsample_height));
 	
 	JPEG_quality = 65;
 	if (ros::param::get(ros::this_node::getName()+"/JPEG_quality", JPEG_quality));
@@ -457,7 +461,7 @@ int main(int argc, const char **argv)
 					takeScreenshot_to_ROS_JPEG(last_frameRGBAPtr[csiPort][cameraIdx] ,last_image_compressedPtr[csiPort][cameraIdx] ,last_image_compressed_size[csiPort][cameraIdx] , csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
 				}
 				if( img_raw_downsample ){
-					takeScreenshot_to_ROS_down(last_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx]);
+					takeScreenshot_to_ROS_down(last_frameRGBAPtr[csiPort][cameraIdx], csiPort, cameraIdx, cv_connectors[csiPort][cameraIdx],img_downsample_width ,img_downsample_height );
 				}
 				
             }
@@ -521,15 +525,13 @@ void takeScreenshot_to_ROS(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t
     }
 }
 
-void takeScreenshot_to_ROS_down(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors)
+void takeScreenshot_to_ROS_down(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t sibling, OpenCVConnector * cv_connectors,int img_downsample_width ,int img_downsample_height)
 {	
 	// Convert to OpenCV format, Convert to to ROS images format and publish
     NvMediaImageSurfaceMap surfaceMap;
     if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
     {
-			cv_connectors->WriteToOpenCV_reduced((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
-		
-			//cv_connectors->WriteToRosPng((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height);
+		cv_connectors->WriteToOpenCV_reduced((unsigned char*)surfaceMap.surface[0].mapping, frameNVMrgba->prop.width, frameNVMrgba->prop.height,img_downsample_width ,img_downsample_height);
 		NvMediaImageUnlock(frameNVMrgba->img);
     }else
     {

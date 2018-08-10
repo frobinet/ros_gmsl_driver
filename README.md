@@ -36,7 +36,10 @@ This node gets GMSL cameras frames and publishes them into ROS topics
 	~img_compressed (bool: default false) select to pusblish JPEG compressed images.
 	~JPEG_quality (int: default 65) quality of JPEGs being produced.
 	~img_raw (bool: default false) select to publish raw 1920x1208px RGBA images.
-	~img_raw_downsample (bool: default false) select to publish raw 1280x800px RGB images.
+	~img_raw_downsample (bool: default false) select to publish raw downsampled images as specified in ~img_downsample_width and ~img_downsample_heigth. It is not recommended to publish raw and raw_donwsample at same time
+	~img_downsample_width (int: default 1200) width of img_raw_downsample images.
+	~img_downsample_height (int: default 800) height of img_raw_downsample images.
+
 	~FPS (int: default 30) select how many FPS needs to be produced. It may not possible to achieve the required FPS in case of CPU shortage
 	~do_rectify (bool: default false) publish the flag "do_rectify" on ~camera_info topic.
 	~camera_type_names (string: default "") list of comma-separated strings, describing the type of cmera conected in eahc port. This parameters tells the driver the kind of camera you have connected in each port. Ports are considered to be connected in order.
