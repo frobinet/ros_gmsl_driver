@@ -38,7 +38,7 @@
 #include <chrono>
 
 
-#include <lodepng.h>
+//#include <lodepng.h>
 
 #include <Checks.hpp>
 #include <WindowGLFW.hpp>

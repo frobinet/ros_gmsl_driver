@@ -11,7 +11,7 @@
 #include <array>
 
 
-#include <lodepng.h>
+//#include <lodepng.h>
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -134,7 +134,7 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	camera_info.width = 1280;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
-
+	
 	//counter ++;
 
 }
@@ -157,11 +157,8 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	pubCamInfo.publish(  camera_info ); */
 }
 	
-
 	
-	
-	
-void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
+/* void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
 
     //sensor_msgs::Image img_msg; // >> message to be sent
 	sensor_msgs::CompressedImage c_img_msg; // std::vector< uint8_t >
@@ -189,7 +186,7 @@ void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height
     pub_comp.publish(  c_img_msg  ); 
 
 }
-
+ */
 void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int height) { // JPEG encoding with OpenCV
 	cv::Mat mat_img(cv::Size(width, height), CV_8UC4 , buffer);
 	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_BGRA2RGB);   //=COLOR_BGRA2RGB
