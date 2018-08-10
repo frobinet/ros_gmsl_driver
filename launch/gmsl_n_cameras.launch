@@ -19,7 +19,7 @@
 	# Nodes
 	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"> 
 		# Parameters
-		<param name="img_compressed" type="bool" value="true" />
+		<param name="img_compressed" type="bool" value="false" />
 		<param name="JPEG_quality" type="int" value="65" />
 		
 		<param name="img_raw" type="bool" value="true" /> # Select img_raw OR img_raw_downsample. Not recommended to do both at same time
