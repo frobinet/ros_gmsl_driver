@@ -24,7 +24,7 @@
 		
 		<param name="img_raw" type="bool" value="true" /> # Select img_raw OR img_raw_downsample. Not possible to do both at same time
 		
-		<param name="img_raw_downsample" type="bool" value="false" /> # You cannot rectify if you downsample (for the moment)
+		<param name="img_raw_downsample" type="bool" value="false" />
 		
 		<param name="FPS" type="int" value="30" />
 		# Parameters for camera calibration: Necessary if you need to rectify 
