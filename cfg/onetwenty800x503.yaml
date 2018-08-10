@@ -1,0 +1,20 @@
+image_width: 800
+image_height: 503
+camera_name: onetwenty800x503
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [405.378735, 0.000000, 402.427967, 0.000000, 406.292415, 278.772446, 0.000000, 0.000000, 1.000000]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.300348, 0.070812, -0.000086, -0.000274, 0.000000]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [289.924011, 0.000000, 401.790797, 0.000000, 0.000000, 348.112305, 288.613401, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]

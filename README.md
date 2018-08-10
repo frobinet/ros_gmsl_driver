@@ -5,8 +5,8 @@ A ROS driver for GMSL cameras on [Drive PX platform](https://www.nvidia.com/en-u
 * JPEG images compression: tested with 7 cameras giving 30FPS with 4MB/s each camera of network bandwith usage. This is ideal for loging JPEGs on a separate computer on same network as Drive PX
 * Raw images 1920x1208px: tested with 4 cameras giving ~15FPS on same Tegra as driver
 * Raw images 1920x1208px rectified with [image_proc_tegra](https://github.com/DavidTorresOcana/image_proc_tegra) on same Tegra as driver: tested with 2 cameras giving ~15FPS on same Tegra as driver
-* Raw images donwsampled at 800x503px: tested with 4 cameras giving ~18FPS on same Tegra as driver
-* Raw images donwsampled at 800x503px rectified with image_proc_tegra on same Tegra as driver: tested with 4 cameras giving ~??FPS on same Tegra as driver
+* Raw images donwsampled at 800x503px: tested with 4 cameras giving ~19FPS on same Tegra as driver
+* Raw images donwsampled at 800x503px rectified with image_proc_tegra on same Tegra as driver: tested with 4 cameras giving ~15FPS on same Tegra as driver
 
 To move data from/to GPU-CPU is very inefficient. Avoid it as much as possible
 
