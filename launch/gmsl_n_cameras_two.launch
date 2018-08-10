@@ -22,9 +22,9 @@
 		<param name="img_compressed" type="bool" value="false" />
 		<param name="JPEG_quality" type="int" value="65" /> 
 		
-		<param name="img_raw" type="bool" value="true" /> # Select img_raw OR img_raw_downsample. Not recommended to do both at same time
+		<param name="img_raw" type="bool" value="false" /> # Select img_raw OR img_raw_downsample. Not recommended to do both at same time
 		
-		<param name="img_raw_downsample" type="bool" value="false" /> # Downsample the raw image and publish. It is not recommended to publish raw and raw_donwsample at same time
+		<param name="img_raw_downsample" type="bool" value="true" /> # Downsample the raw image and publish. It is not recommended to publish raw and raw_donwsample at same time
 		<param name="img_downsample_width" type="int" value="800" /> # width of the donwsample. Tune this to get the size you need
 		<param name="img_downsample_height" type="int" value="503" /> # height of the donwsample. Tune this to get the size you need
 		
