@@ -38,8 +38,6 @@
 #include <chrono>
 
 
-#include <lodepng.h>
-
 #include <Checks.hpp>
 #include <WindowGLFW.hpp>
 #include <WindowEGL.hpp>
@@ -493,14 +491,6 @@ void takeScreenshot(dwImageNvMedia *frameNVMrgba, uint8_t group, uint32_t siblin
     if (NvMediaImageLock(frameNVMrgba->img, NVMEDIA_IMAGE_ACCESS_READ, &surfaceMap) == NVMEDIA_STATUS_OK)
     {
 		std::cout<<  (uint8_t*) surfaceMap.surface[0].mapping <<std::endl;
-		// Save a png file using Nvidia drivers
-			/*char fname[128];
-			sprintf(fname, "screenshot_%u_%d_%04d.png", group, sibling, gScreenshotCount);
-			lodepng_encode32_file(fname, (unsigned char*)surfaceMap.surface[0].mapping,
-					frameNVMrgba->prop.width, frameNVMrgba->prop.height);*/
-			
-			//std::cout << "SCREENSHOT TAKEN to " << fname << "\n";
-		
 		NvMediaImageUnlock(frameNVMrgba->img);
     }else
     {

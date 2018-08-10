@@ -11,8 +11,6 @@
 #include <array>
 
 
-#include <lodepng.h>
-
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -45,41 +43,11 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
 	}
 	
     pubCamInfo = nh.advertise<sensor_msgs::CameraInfo>(topic_name + std::string("/camera_info"), 1);
-			
-	
-	
-   // GPUJPEG encoder
-	/* gpujpeg_set_default_parameters(&param);  // quality:75, restart int:8, interleaved:1
-	param.quality = 60; 
-	
-	gpujpeg_image_set_default_parameters(&param_image);
-	param_image.width = 1280; // ??????????????  "850x544"??. Native resolution is   1920
-	param_image.height = 800;  // Native resolution is  1208
-	param_image.comp_count = 3;
-	// (for now, it must be 3)
-	param_image.color_space = GPUJPEG_RGB;
-	param_image.sampling_factor = GPUJPEG_4_4_4;
-	
-	if ( gpujpeg_init_device(0, 0) ){
-		std::cerr << "    ERROR starting CUDA for compression" << std::endl;
-	} 
-	
-	encoder = gpujpeg_encoder_create(&param, &param_image);
-	if ( encoder == NULL )	{
-		std::cerr << " ERROR creating jpeg encoder" << std::endl;
-	} */
     
 } 
 
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
-	// This  would take a lot of time!
-	// create a cv::Mat from a dwImageNvMedia rgbaImage
-    // cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
-    //cv::Mat converted;//=new cv::Mat();
-    //cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2BGR
-	
-	
-    //cv_bridge::CvImage img_bridge;
+
 	sensor_msgs::ImagePtr ptr = boost::make_shared<sensor_msgs::Image>();
     sensor_msgs::Image &img_msg = *ptr; // >> message to be sent
 	 
@@ -98,12 +66,6 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	size_t size = img_msg.step * height;
 	img_msg.data.resize(size);
 	memcpy((char *)( &img_msg.data[0] ) , buffer , size);
-	
-    //img_bridge = cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGB8, mat_img);
-    //img_bridge.toImageMsg(img_msg); // from cv_bridge to sensor_msgs::Image
-	
-	//sensor_msgs::ImagePtr img_msg = cv_bridge::CvImage(mat_img).toImageMsg();
-    ///pub.publish(  cv_bridge::CvImage(header, sensor_msgs::image_encodings::RGBA8 , mat_img).toImageMsg()  ); 
 	
 	pub.publish( ptr );
 	
@@ -134,7 +96,7 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	camera_info.width = 1280;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
-
+	
 	//counter ++;
 
 }
@@ -157,11 +119,8 @@ void OpenCVConnector::PublishJpeg(uint8_t* image_compressed, uint32_t image_comp
 	pubCamInfo.publish(  camera_info ); */
 }
 	
-
 	
-	
-	
-void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
+/* void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height) {
 
     //sensor_msgs::Image img_msg; // >> message to be sent
 	sensor_msgs::CompressedImage c_img_msg; // std::vector< uint8_t >
@@ -189,7 +148,7 @@ void OpenCVConnector::WriteToRosPng(unsigned char* buffer, int width, int height
     pub_comp.publish(  c_img_msg  ); 
 
 }
-
+ */
 void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int height) { // JPEG encoding with OpenCV
 	cv::Mat mat_img(cv::Size(width, height), CV_8UC4 , buffer);
 	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_BGRA2RGB);   //=COLOR_BGRA2RGB
@@ -213,36 +172,6 @@ void OpenCVConnector::WriteToOpenCVJpeg(unsigned char* buffer, int width, int he
     pub_comp.publish(  c_img_msg  );
 }
 
-void OpenCVConnector::WriteToRosJpeg(unsigned char* buffer, int width, int height) {
-	sensor_msgs::CompressedImage c_img_msg; 
-	
-	cv::Mat mat_img(cv::Size(width, height), CV_8UC4, buffer);
-	cv::resize(mat_img, mat_img,  cv::Size(param_image.width,param_image.height), 0, 0, CV_INTER_LINEAR); //
-	cv::cvtColor( mat_img  ,mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
-	
-		////////////// Compress directly to JPEG
-		struct gpujpeg_encoder_input encoder_input;
-		gpujpeg_encoder_input_set_image(&encoder_input, mat_img.data);
-		//gpujpeg_encoder_input_set_image(&encoder_input, buffer);
-		
-		int image_compressed_size = 0;
-		uint8_t* image_compressed = NULL;
-		if ( gpujpeg_encoder_encode(encoder, &encoder_input, &image_compressed,
-		&image_compressed_size, false) != 0 ) // Upload from CPU 
-						std::cerr << "cannot encode image\n";
-		/////////////////////
-		c_img_msg.data.resize( image_compressed_size );
-		memcpy(&c_img_msg.data[0], image_compressed, image_compressed_size);
-	
-	std_msgs::Header header; // empty header
-	c_img_msg.header = header;
-	//c_img_msg.header.seq = counter; // user defined counter
-	c_img_msg.header.stamp = ros::Time::now(); // time
-	
-	c_img_msg.format = "jpeg";
-	
-    pub_comp.publish(  c_img_msg  );
-}
 
 
 

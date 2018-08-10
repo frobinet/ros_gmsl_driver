@@ -12,9 +12,6 @@
 
 #include <camera_info_manager/camera_info_manager.h>
 
-#include "libgpujpeg/gpujpeg.h"
-
-
 class OpenCVConnector {
 
 public:
@@ -44,11 +41,6 @@ public:
 	// Compress img_msg
 	ros::Publisher pub_comp;
 	
-	// JPEG encoder
-	gpujpeg_encoder* encoder;
-	struct gpujpeg_image_parameters param_image;
-	struct gpujpeg_parameters param;
-
 	// Methods 
 	OpenCVConnector( std::string topic_name,size_t csiPort, uint32_t cameraIdx, std::string , std::string camera_type_name , bool do_rectify);
 
@@ -58,7 +50,6 @@ public:
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToOpenCV_reduced(unsigned char*, int, int);
 	void WriteToRosPng(unsigned char*, int, int);
-	void WriteToRosJpeg(unsigned char*, int, int);
 	void WriteToOpenCVJpeg(unsigned char*, int, int);
 	void PublishJpeg(uint8_t* , uint32_t );
 

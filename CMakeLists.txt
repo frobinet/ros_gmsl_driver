@@ -12,16 +12,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(glfw_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/glfw-3.1.1/include)
 set(glfw_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/glfw-3.1.1/lib)
 set(drive_t186ref_linux_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/drive-t186ref-linux/include)
-set(lodepng_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng-20150912/include)
-set(lodepng_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng-20150912/lib)
-set(lodepng_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/linux-aarch64/lodepng/)
-
-set(gpujpeg_INCLUDE_DIR /usr/local/include/)
-set(gpujpeg_LIBRARY /usr/local/lib/libgpujpeg.so)
 
 link_directories(${glfw_LIBRARY})
-link_directories(${lodepng_LIBRARY})
-link_directories(${gpujpeg_LIBRARY})
+
 
 find_package(CUDA REQUIRED)
 find_package(Threads REQUIRED)
@@ -58,8 +51,6 @@ include_directories(
   ${GLEW_INCLUDE_DIR}
   ${glfw_INCLUDE_DIR}
   ${drive_t186ref_linux_INCLUDE_DIR}
-  ${lodepng_INCLUDE_DIR}
-  ${gpujpeg_INCLUDE_DIR}
 )
 
 # ros node name template
@@ -72,7 +63,6 @@ add_executable(${NODE_NAME} src/main.cpp
   src/cv_connection.cpp
   src/SampleFramework.cpp
   src/Log.cpp
-  3rdparty/linux-aarch64/lodepng/lodepng.cpp
 )
 
 target_link_libraries(${NODE_NAME}
@@ -85,6 +75,4 @@ target_link_libraries(${NODE_NAME}
   drm
   ${CUDA_LIBRARY}
   ${OpenCV_LIBS}
-  ${lodepng_LIBRARY}
-  ${gpujpeg_LIBRARY}
 )
