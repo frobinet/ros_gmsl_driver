@@ -80,7 +80,6 @@ void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height
 	pubCamInfo.publish(  camera_info );
 
 	//counter ++;
-
 }
 
 void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, int height,int downsample_width , int downsample_height) {
@@ -89,8 +88,10 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	
 	cv::cuda::resize(gpu_mat_img, gpu_mat_img,  cv::Size( downsample_width ,downsample_height ), 0, 0, CV_INTER_LINEAR); //
 	cv::cuda::cvtColor( gpu_mat_img  ,gpu_mat_img,cv::COLOR_RGBA2RGB);   //=COLOR_BGRA2RGB
-	// Rectification here??
-	
+	//// Rectification here??
+		
+		
+	////	
 	gpu_mat_img.download(mat_img);// Get from GPU memory
 	
 	// Format msg
@@ -102,8 +103,6 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	
 	camera_info = info_manager_.getCameraInfo();
 	camera_info.header = header;
-	camera_info.height = downsample_height;
-	camera_info.width = downsample_width;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
 	
