@@ -1,0 +1,20 @@
+image_width: 1920
+image_height: 1208
+camera_name: onetwenty
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [990.747106, 0.000000, 997.802074, 0.000000, 995.384472, 649.471390, 0.000000, 0.000000, 1.000000]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.301275, 0.066084, 0.000483, -0.001398, 0.000000]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [682.378174, 0.000000, 980.871282, 0.000000, 0.000000, 860.070312, 666.775267, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]

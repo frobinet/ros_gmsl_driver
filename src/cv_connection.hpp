@@ -5,8 +5,12 @@
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <string>
+#include <iostream>
+#include <utility>
+#include <thread>
+#include <chrono>
 
-#include "libgpujpeg/gpujpeg.h"
+#include <camera_info_manager/camera_info_manager.h>
 
 class OpenCVConnector {
 
@@ -27,25 +31,28 @@ public:
 	unsigned int counter = 0;
 	size_t csiPort;
 	uint32_t cameraIdx;
+	// Camera info
+	sensor_msgs::CameraInfo camera_info;
+	camera_info_manager::CameraInfoManager info_manager_;
+	ros::Publisher pubCamInfo;
+	bool do_rectify;
+	
 	
 	// Compress img_msg
 	ros::Publisher pub_comp;
 	
-	// JPEG encoder
-	gpujpeg_encoder* encoder;
-	struct gpujpeg_image_parameters param_image;
-	struct gpujpeg_parameters param;
-	
-	
 	// Methods 
-	OpenCVConnector(std::string topic_name,size_t csiPort, uint32_t cameraIdx);
-	
+	OpenCVConnector( std::string topic_name,size_t csiPort, uint32_t cameraIdx, std::string , std::string camera_type_name , bool do_rectify);
+
 	~OpenCVConnector();
-	virtual void showFPS();
 	
+	void loadCameraInfo();
 	void WriteToOpenCV(unsigned char*, int, int);
-	void WriteToOpenCV_GPU(unsigned char*, int, int);
-	void WriteToOpenCV_GPU_Jpeg(unsigned char*, int, int);
+	void WriteToOpenCV_reduced(unsigned char*, int, int, int ,int);
+	void WriteToRosPng(unsigned char*, int, int);
+	void WriteToOpenCVJpeg(unsigned char*, int, int);
+	void PublishJpeg(uint8_t* , uint32_t );
+
 };
 
 
