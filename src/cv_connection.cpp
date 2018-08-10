@@ -130,6 +130,8 @@ void OpenCVConnector::WriteToOpenCV_reduced(unsigned char* buffer, int width, in
 	
 	camera_info = info_manager_.getCameraInfo();
 	camera_info.header = header;
+	camera_info.height = 800;
+	camera_info.width = 1280;
 	camera_info.roi.do_rectify = do_rectify;
 	pubCamInfo.publish(  camera_info );
 

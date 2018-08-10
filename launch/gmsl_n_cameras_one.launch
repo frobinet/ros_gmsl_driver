@@ -10,7 +10,7 @@
 		This driver assumes you are connecting the cameras always in order 0,1,2.... in every port (port = group).
 	-->
 	# Arguments
-	<arg name="selector-mask" value="01110001" /> # This allows you to connect any camera at any port.
+	<arg name="selector-mask" value="0001" /> # This allows you to connect any camera at any port.
 												# In reversed order by port. E.g. the mask corresponds to the order [cam3,cam2,cam1,cam0] of every port. 
 												# E.g. if you connect 2 cameras on port AB on slots 0 and 1 and; 2 cameras on port CD on slots 0 and 1. Mask would be: 00110011
 												# E.g. if you connect 3 cameras on port AB on slots 0,1 and 2;  1 camera on port CD on slots 0. Mask would be: 01110001
@@ -22,14 +22,15 @@
 		<param name="img_compressed" type="bool" value="false" />
 		<param name="JPEG_quality" type="int" value="65" /> 
 		
-		<param name="img_raw" type="bool" value="true"/>
+		<param name="img_raw" type="bool" value="true" /> # Select img_raw OR img_raw_downsample. Not possible to do both at same time
 		
 		<param name="img_raw_downsample" type="bool" value="false" /> # You cannot rectify if you downsample (for the moment)
 		
 		<param name="FPS" type="int" value="30" />
-		# Parameters for camera calibration> Necessary if you need to rectify 
+		# Parameters for camera calibration: Necessary if you need to rectify 
 		<param name="do_rectify" type="bool" value="true" /> # This does not mean the driver rectifies the images, but publishes the appropriate flag into /camera_info so image_proc does
-		<rosparam param="camera_type_names" subst_value="True">"sixty,fish_eye,fish_eye,onetwenty"</rosparam> # How to set camera_type_names?
+															  #   To rectify images, use cameras_rectifier.launch (in other computer in the network) or gmsl_n_cameras_rectifier.launch in PX2
+		<rosparam param="camera_type_names" subst_value="True">"onetwenty"</rosparam> # How to set camera_type_names?
 		<!--  This parameters tells the driver the kind of camera you have connected.
 			* fish_eye: Sekonix NA1962 190x150 deg FOV
 			* onetwenty: Sekonix NA1262 120x73 deg FOV
@@ -42,46 +43,6 @@
 			-->
 	</node>
 	
-	## Camera rectifications
-	<group ns="gmsl_camera">
-		<group ns="port_0">
-			<node ns="cam_0" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_1" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_2" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_3" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-		</group>
-		
-		<group ns="port_1">
-			<node ns="cam_0" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_1" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_2" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-			<node ns="cam_3" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true" output="screen">
-				<remap from="image_mono" to="image_raw"/>
-				<remap from="camera_info" to="camera_info"/>
-			</node>
-		</group>
-		
-	</group>
+	
 		
 </launch>
