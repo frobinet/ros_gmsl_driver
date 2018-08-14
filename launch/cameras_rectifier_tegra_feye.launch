@@ -5,30 +5,30 @@
 	<group ns="gmsl_camera">
 		<group ns="port_0">
 			<node ns="cam_0" pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager" />
-			<node  ns="cam_0" pkg="nodelet" type="nodelet" name="image_proc_test" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
+			<node  ns="cam_0" pkg="nodelet" type="nodelet" name="image_proc_tegra" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
 				<remap from="image_raw" to="image_raw"/>
 				<remap from="camera_info" to="camera_info"/>
 				<remap from="image_rect" to="image_rect" />
 			</node>
 			<node ns="cam_1" pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager" />
-			<node  ns="cam_1" pkg="nodelet" type="nodelet" name="image_proc_test" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
+			<node  ns="cam_1" pkg="nodelet" type="nodelet" name="image_proc_tegra" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
 				<remap from="image_raw" to="image_raw"/>
 				<remap from="camera_info" to="camera_info"/>
 				<remap from="image_rect" to="image_rect" />
 			</node>
 			<node ns="cam_2" pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager" />
-			<node  ns="cam_2" pkg="nodelet" type="nodelet" name="image_proc_test" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
+			<node  ns="cam_2" pkg="nodelet" type="nodelet" name="image_proc_tegra_fisheye" args="load image_proc_tegra_fisheye/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
 				<remap from="image_raw" to="image_raw"/>
 				<remap from="camera_info" to="camera_info"/>
 				<remap from="image_rect" to="image_rect" />
 			</node>
 			<node ns="cam_3" pkg="nodelet" type="nodelet" name="camera_nodelet_manager"  args="manager" />
-			<node  ns="cam_3" pkg="nodelet" type="nodelet" name="image_proc_test" args="load image_proc_tegra/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
-				<remap from="image_raw" to="image_raw"/>
+			<node  ns="cam_3" pkg="nodelet" type="nodelet" name="image_proc_tegra_fisheye" args="load image_proc_tegra_fisheye/RectifyNodelet camera_nodelet_manager" output="screen" respawn="true">
+				<remap from="image_raw" to="image_raw"/> 
 				<remap from="camera_info" to="camera_info"/>
 				<remap from="image_rect" to="image_rect" />
 			</node>
-		</group>
+		</group> 
 		
 		<!-- <group ns="port_1">
 			<node ns="cam_0" pkg="nodelet" type="nodelet" name="nodelet" args="standalone image_proc/rectify" respawn="true">

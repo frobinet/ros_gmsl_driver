@@ -57,7 +57,7 @@ roslaunch gmsl_n_cameras gmsl_n_cameras.launch
 ```
 
 ## Image rectification
-To rectify the camera feeds [image_proc](http://wiki.ros.org/image_proc) or [image_proc_tegra](https://github.com/DavidTorresOcana/image_proc_tegra) can be used. image_proc_tegra can be used in Tegra cores and needs OpenCV with CUDA support
+To rectify the camera feeds [image_proc](http://wiki.ros.org/image_proc) or [image_proc_tegra](https://github.com/DavidTorresOcana/image_pipeline/tree/indigo/image_proc_tegra) can be used. image_proc_tegra can be used in Tegra cores and needs OpenCV with CUDA support
 
 ```
 roslaunch gmsl_n_cameras cameras_rectifier.launch
