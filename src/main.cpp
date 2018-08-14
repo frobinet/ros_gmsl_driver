@@ -144,9 +144,9 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 	dwStatus result;
 
 	int32_t pool_size = 2;
-
+	
 	uint32_t numFramesRGB = pool_size*cameraSensor->numSiblings;
-		
+	
 	bool eof;
 	
 	dwImageStreamerHandle_t nvm2CUDA = DW_NULL_HANDLE;
