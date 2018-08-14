@@ -58,6 +58,10 @@
 #include <dw/image/ImageStreamer.h>
 #include <dw/image/FormatConverter.h>
 
+#include <dw/rigconfiguration/RigConfiguration.h>
+#include <dw/colorcorrection/ColorCorrection.h>
+
+
 #include <ros/ros.h>
 #include "cv_connection.hpp"
 
@@ -91,7 +95,7 @@ uint32_t g_imageHeight;
 uint32_t g_numCameras;
 //GridData_t g_grid;
 
-std::vector<std::vector<dwImageCUDA*>> g_frameRGBPtr;
+std::vector<std::vector<dwImageCUDA*>> g_frameRGBAPtr;
 
 // combine by camera sensor, which might have camera siblings
 struct Camera {
@@ -100,8 +104,8 @@ struct Camera {
 	uint32_t width;
 	uint32_t height;
 	dwImageStreamerHandle_t streamer; // different streamers to support different resolutions
-	dwImageFormatConverterHandle_t yuv2rgb;
-	std::queue<dwImageCUDA *> rgbPool;
+	dwImageFormatConverterHandle_t yuv2rgba;
+	std::queue<dwImageCUDA *> rgbaPool;
 };
 
 //------------------------------------------------------------------------------
@@ -124,7 +128,8 @@ void initSensors(std::vector<Camera> *cameras,
 dwStatus captureCamera(dwImageCUDA *frameNVMrgb,
 					   dwSensorHandle_t cameraSensor,
 					   uint32_t sibling,
-					   dwImageFormatConverterHandle_t yuv2rgb,dwImageStreamerHandle_t * nvm2CUDA);
+					   dwImageFormatConverterHandle_t yuv2rgba, 
+					   dwImageStreamerHandle_t nvm2CUDA);
 
 void renderFrame(dwImageStreamerHandle_t streamer, dwRendererHandle_t renderer);
 
@@ -144,71 +149,80 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 		
 	bool eof;
 	
-	
 	dwImageStreamerHandle_t nvm2CUDA = DW_NULL_HANDLE;
-		
+	
 	// RGBA image pool for conversion from YUV camera output
 	// two RGBA frames per camera per sibling for a pool
 	// since image streamer might hold up-to one frame when using egl streams
-	std::vector<dwImageCUDA> frameRGB;
-	{
+	std::vector<dwImageCUDA> frameRGBA;
+	{	
+		// Get camera frames properties
 		dwImageProperties cameraImageProperties;
 		result = dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE, cameraSensor->sensor);
 		if(result != DW_SUCCESS)
 		{
 			std::cerr << "error in setting image properties\n";
 		}
-
-		// Initialize streamer from NVMedia to CUDA
-		result = dwImageStreamer_initialize(&nvm2CUDA, &cameraImageProperties, DW_IMAGE_CUDA, sdk);
-		if (result != DW_SUCCESS) 
-		{
-			std::cerr << "\n ERROR Initialising stream: "  << dwGetStatusName(result) << std::endl;
-			g_run = false;
-		}
-		else
-		{
-			std::cerr << "   stream initialised\n" ;
-		}
-
-		// format converter
-		cameraImageProperties.type = DW_IMAGE_CUDA;
-		cameraImageProperties.pxlFormat = DW_IMAGE_YUV420;
+		
+		// Set CUDA format converter
+		cameraImageProperties.type = DW_IMAGE_CUDA; // We will use CUDA for almost everything
+		//cameraImageProperties.pxlFormat = DW_IMAGE_YUV420; // DW_CAMERA_PROCESSED_IMAGE is pxLFormat DW_IMAGE_YUV420
+		
 		dwImageProperties displayImageProperties = cameraImageProperties;
-		displayImageProperties.pxlFormat = DW_IMAGE_RGB;
+		displayImageProperties.pxlFormat = DW_IMAGE_RGBA; // DW_IMAGE_RGB ???
 		displayImageProperties.planeCount = 1;
-		result = dwImageFormatConverter_initialize(&cameraSensor->yuv2rgb, displayImageProperties.type, sdk);
-		if (result != DW_SUCCESS) 
-		{
-			std::cerr << "Cannot create pixel format converter : yuv->rgba" << dwGetStatusName(result) <<  std::endl;
+		result = dwImageFormatConverter_initialize(&cameraSensor->yuv2rgba, cameraImageProperties.type, sdk);  // Should we set here displayImageProperties   ??
+		if (result != DW_SUCCESS) {
+			std::cerr << "Cannot create CUDA pixel format converter : yuv->rgba" << dwGetStatusName(result) <<  std::endl;
 			g_run = false;
 		}
+		
+		// Initialize Streamer from NVMedia to CUDA
+		dwImageProperties nvm2cudaProps = cameraImageProperties;
+		nvm2cudaProps.type = DW_IMAGE_NVMEDIA;
+		nvm2cudaProps.pxlFormat = DW_IMAGE_YUV420;
+		nvm2cudaProps.pxlType = DW_TYPE_UINT8;
+		result = dwImageStreamer_initialize(&nvm2CUDA, &nvm2cudaProps, DW_IMAGE_CUDA, sdk);
+		if (result != DW_SUCCESS)  {
+			std::cerr << "\n ERROR Initialising NvMedia2Cuda stream: "  << dwGetStatusName(result) << std::endl;
+			g_run = false;
+		}
+		else {
+			std::cerr << "   Stream initialised\n" ;
+		} 
 		
 		// allocate pool
 		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor->numSiblings; cameraIdx++) {
 			for (int32_t k = 0; k < pool_size; k++) {
-				dwImageCUDA rgb{};
+				dwImageCUDA rgba{};
+				void *dptr   = nullptr;
+				size_t pitch = 0;
+				cudaMallocPitch( &dptr, &pitch, cameraImageProperties.width * 4, cameraImageProperties.height ); // 4 channels for RGBA
+				dwImageCUDA_setFromPitch(&rgba, dptr, cameraImageProperties.width, cameraImageProperties.height, pitch, DW_IMAGE_RGBA);
 				
-				/* void *dptr   = nullptr;
-				size_t pitch;
+				/* dwImageCUDA rgb{};
+				void *dptr   = nullptr;
+				size_t pitch = 0;
 				cudaMallocPitch(&dptr, &pitch, cameraImageProperties.width * 3, cameraImageProperties.height);
-				pitch = cameraImageProperties.width * 3; // 5760
-				result = dwImageCUDA_setFromPitch(&rgb,dptr, cameraImageProperties.width, cameraImageProperties.height, pitch, DW_IMAGE_RGB); */
-				
-				dwImageCUDA_create(&rgb, &displayImageProperties,DW_IMAGE_CUDA_PITCH);
-				
-				rgb.prop.pxlType = DW_TYPE_UINT8;
+				// pitch = cameraImageProperties.width * 3; // 5760
+				result = dwImageCUDA_setFromPitch(&rgb,dptr, cameraImageProperties.width, cameraImageProperties.height, pitch, DW_IMAGE_RGB);
 				if (result != DW_SUCCESS) 
 				{
-					std::cerr << "ERROR creating dw cuda img for pool: " << dwGetStatusName(result) << std::endl;
+					std::cerr << "ERROR creating dw CUDA img for pool: " << dwGetStatusName(result) << std::endl;
 					g_run = false;
 					break;
-				}
-
-				frameRGB.push_back(rgb);
-				cameraSensor->rgbPool.push(&frameRGB.back());
+				} */
+				
+				/* dwImageCUDA rgb{}; 
+				dwImageCUDA_create(&rgb, &displayImageProperties,DW_IMAGE_CUDA_PITCH);
+				 */
+				
+				
+				// Set it into the pool
+				frameRGBA.push_back(rgba);
+				cameraSensor->rgbaPool.push(&frameRGBA.back());
 			}
-		}
+		} 
 		
 		g_run = g_run && dwSensor_start(cameraSensor->sensor) == DW_SUCCESS;
 		eof = false;
@@ -225,27 +239,25 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 				eofAny = true;
 				continue;
 			}
-
-			if (cameraSensor->rgbPool.empty()) {
+			
+			if (cameraSensor->rgbaPool.empty()) {
 				std::cerr << "Ran out of RGBA buffers, continuing" << std::endl;
 				continue;
 			}
 
 			// capture from all cameras within a csi port
-			for (uint32_t cameraIdx = 0;
-				 cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbPool.empty();
-				 cameraIdx++) {
+			for (uint32_t cameraIdx = 0;  cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbaPool.empty(); cameraIdx++) {
 
 				// capture, convert to rgba and return it
-				eof = captureCamera(cameraSensor->rgbPool.front(),
+				eof = captureCamera(cameraSensor->rgbaPool.front(),
 									cameraSensor->sensor, cameraIdx,
-									cameraSensor->yuv2rgb,
-									&nvm2CUDA);
-				g_frameRGBPtr[port][cameraIdx] = cameraSensor->rgbPool.front();
-				cameraSensor->rgbPool.pop();
+									cameraSensor->yuv2rgba,
+									nvm2CUDA );
+				g_frameRGBAPtr[port][cameraIdx] = cameraSensor->rgbaPool.front();
+				cameraSensor->rgbaPool.pop();
 
 				if (!eof) {
-					cameraSensor->rgbPool.push(g_frameRGBPtr[port][cameraIdx]);
+					cameraSensor->rgbaPool.push(g_frameRGBAPtr[port][cameraIdx]);
 				}
 				// Time
 				
@@ -257,9 +269,9 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 		/* if (gTakeScreenshot) {
 			{
 				for (uint32_t cameraIdx = 0;
-					 cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbPool.empty();
+					 cameraIdx < cameraSensor->numSiblings && !cameraSensor->rgbaPool.empty();
 					 cameraIdx++) {
-					takeScreenshot(g_frameRGBPtr[port][cameraIdx], port, cameraIdx);
+					takeScreenshot(g_frameRGBAPtr[port][cameraIdx], port, cameraIdx);
 				}
 			}
 			gScreenshotCount++;
@@ -280,10 +292,10 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
 		dwSAL_releaseSensor(&cameraSensor->sensor);
 
 		//dwImageStreamer_release(&cameraSensor->streamer);
-		dwImageFormatConverter_release(&cameraSensor->yuv2rgb);
+		dwImageFormatConverter_release(&cameraSensor->yuv2rgba);
 	}
 
-	for (dwImageCUDA& frame : frameRGB) {
+	for (dwImageCUDA& frame : frameRGBA) {
 		dwStatus result = dwImageCUDA_destroy(&frame);
 		if (result != DW_SUCCESS) {
 			std::cerr << "Cannot destroy nvmedia: " << dwGetStatusName(result) << std::endl;
@@ -340,7 +352,7 @@ int main(int argc, const char **argv)
 		for (size_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings; ++cameraIdx) {
 			pool.push_back(nullptr);
 		}
-		g_frameRGBPtr.push_back(pool);
+		g_frameRGBAPtr.push_back(pool);
 
 	}
 	
@@ -357,11 +369,8 @@ int main(int argc, const char **argv)
 
 	// loop through all cameras check if they have provided the first frame
 	for (size_t csiPort = 0; csiPort < cameraSensor.size() && g_run; csiPort++) {
-		for (uint32_t cameraIdx = 0;
-			 cameraIdx < cameraSensor[csiPort].numSiblings && g_run;
-			 cameraIdx++) {
-
-			while (!g_frameRGBPtr[csiPort][cameraIdx] && g_run) {
+		for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings && g_run; cameraIdx++) {
+			while (!g_frameRGBAPtr[csiPort][cameraIdx] && g_run) {
 				std::this_thread::yield();
 			}
 		}
@@ -400,12 +409,12 @@ int main(int argc, const char **argv)
 				}
 				
 				// stop to take screenshot to ROS (will cause a delay)
-				///////takeScreenshot_to_ROS(g_frameRGBPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
+				///////takeScreenshot_to_ROS(g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings], csiPort, cameraIdx, cv_connectors[cameraIdx]);
 				//cv_connectors[cameraIdx]->showFPS();
 				
 				
 				// GET RGB from CUDA
-				uint8_t* imagee = (uint8_t*) g_frameRGBPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings]->dptr[0];
+				uint8_t* imagee = (uint8_t*) g_frameRGBAPtr[csiPort][cameraIdx - csiPort*cameraSensor[csiPort].numSiblings]->dptr[0];  // You could access CUDA images directly from CPU??
 				
 				// DEBUGING run_time
 				/* if(cameraIdx == 0 && csiPort == 0 ){
@@ -521,7 +530,7 @@ void initSdk(dwContextHandle_t *context, WindowBase *window)
 		//sdkParams.eglDisplay = window->getEGLDisplay();
 		
 		// Going directly to the source of getEGLDisplay 
-		// EGLDisplay m_display = EGL_NO_DISPLAY; 
+		//EGLDisplay m_display = EGL_NO_DISPLAY; 
 		//sdkParams.eglDisplay = EGL_NO_DISPLAY;
 		
 		///EGLDisplay m_display;
@@ -652,11 +661,11 @@ void initSensors(std::vector<Camera> *cameras,
 }
 
 //------------------------------------------------------------------------------
-dwStatus captureCamera(dwImageCUDA *d_rgb,
-					   dwSensorHandle_t cameraSensor,
-					   uint32_t sibling,
-					   dwImageFormatConverterHandle_t yuv2rgb,
-					   dwImageStreamerHandle_t * nvm2CUDA)
+dwStatus captureCamera(dwImageCUDA *frameCUDArgba,
+			dwSensorHandle_t cameraSensor,
+			uint32_t sibling,
+			dwImageFormatConverterHandle_t yuv2rgba,
+			dwImageStreamerHandle_t nvm2CUDA_)
 {
 	dwCameraFrameHandle_t frameHandle;
 	dwImageNvMedia *frameNVMyuv = nullptr;
@@ -672,57 +681,40 @@ dwStatus captureCamera(dwImageCUDA *d_rgb,
 	if( result != DW_SUCCESS ){
 		std::cout << "readFrameNvMedia: " << dwGetStatusName(result) << std::endl;
 	}
-
-	result = dwImageStreamer_postNvMedia(frameNVMyuv, *nvm2CUDA);
-		if (result != DW_SUCCESS) 
-		{
-			std::cerr << "\n ERROR postNvMedia: " << dwGetStatusName(result) << std::endl;
-		} 
-		
 	
-	/* result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgb, frameNVMyuv, yuv2rgb);
+	dwImageCUDA *frameCUDAyuv = nullptr;
+	dwImageStreamer_postNvMedia(frameNVMyuv, nvm2CUDA_);
+	result = dwImageStreamer_receiveCUDA(&frameCUDAyuv, 30000, nvm2CUDA_);
+    if (result != DW_SUCCESS) {
+        std::cerr << "did not received CUDA frame within 30ms" << std::endl;
+        return result;
+    }
+	
+	/* result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgb, frameNVMyuv, yuv2rgba);
 	if( result != DW_SUCCESS ){
 		std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;
 
 	} */
 	
-	dwImageCUDA * d_frame = nullptr;
-	result = dwImageStreamer_receiveCUDA(&d_frame, 10000, *nvm2CUDA);
-	if (result != DW_SUCCESS) 
-	{
-		std::cerr << "ERROR cannot receive on CUDA: " <<  dwGetStatusName(result) << std::endl;
-	} 
-				
- 	//dwImageCUDA d_rgb;
-	/*void *dptr   = nullptr;
-	size_t pitch;
-	cudaMallocPitch(&dptr, &pitch, d_frame->prop.width * 3, d_frame->prop.height);
-	pitch = d_frame->prop.width * 3; // 5760
+	///// Color correct here?
 	
-	result = dwImageCUDA_setFromPitch(&d_rgb, dptr, d_frame->prop.width, d_frame->prop.height, pitch, DW_IMAGE_RGB);
-	d_rgb.prop.pxlType = DW_TYPE_UINT8;
-	if (result != DW_SUCCESS) 
-	{
-		std::cerr << "ERROR creating dw cuda img from pitch: " << dwGetStatusName(result) << std::endl;
-	}  */
 	
-	result = dwImageFormatConverter_copyConvertCUDA(d_rgb, d_frame, yuv2rgb, 0);
+	///////
+	result = dwImageFormatConverter_copyConvertCUDA(frameCUDArgba, frameCUDAyuv, yuv2rgba, 0);
 	if (result != DW_SUCCESS) 
 	{
-		std::cerr << "ERROR converting cuda format: " << dwGetStatusName(result) << std::endl;
+		std::cerr << "ERROR converting CUDA format: " << dwGetStatusName(result) << std::endl;
 	}
+		
 	
-	// TODO record post cv frame for logging here 
-	int height =  d_frame->prop.height;
-	int width = d_frame->prop.width;
-
-	result = dwImageStreamer_returnReceivedCUDA(d_frame, *nvm2CUDA);
+	dwImageNvMedia *processedNVM;
+	result = dwImageStreamer_returnReceivedCUDA(frameCUDAyuv, nvm2CUDA_);
 	if(result != DW_SUCCESS)
 	{
 		std::cerr << "ERROR cannot return CUDA: " <<  dwGetStatusName(result) << std::endl;
 	}
-				
-				
+	dwImageStreamer_waitPostedNvMedia(&processedNVM, 30000, nvm2CUDA_);			
+	
 	result = dwSensorCamera_returnFrame(&frameHandle);
 	if( result != DW_SUCCESS ){
 		std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;

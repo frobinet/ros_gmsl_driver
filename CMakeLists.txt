@@ -71,30 +71,6 @@ add_executable(${NODE_NAME} src/main.cpp
   src/Log.cpp
 )
 
-target_link_libraries(${NODE_NAME} # See CMakeList.txt of dw_samples_framework
-  ${catkin_LIBRARIES}
-  nvmedia  
-  ${GLEW_LIBRARY}
-  driveworks
-  GLESv2
-  EGL
-  drm
-  ${CUDA_LIBRARY}
-  ${OpenCV_LIBS} 
-  
-  glfw
-  ${OPENGL_gl_LIBRARY}
-	${X11_LIBRARIES}
-	${X11_Xrandr_LIB}
-	${X11_Xcursor_LIB}
-	${X11_Xxf86vm_LIB}
-	${X11_Xinerama_LIB}
-	${X11_Xi_LIB}
-  
-  ## ${glfw_LIBRARY}
-  
-  #${glfw_LIBRARY_DIRS}
-)
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
@@ -111,3 +87,35 @@ include_directories(
   
   ##${glfw_INCLUDE_DIR}
 )
+
+target_link_libraries(${NODE_NAME} # See CMakeList.txt of dw_samples_framework
+  ${catkin_LIBRARIES}
+  nvmedia  
+  ${GLEW_LIBRARY}
+  driveworks
+  GLESv2
+  EGL
+  drm
+  ${CUDA_LIBRARIES}
+  ${OpenCV_LIBS} 
+  glfw
+  ${OPENGL_gl_LIBRARY}
+	${X11_LIBRARIES}
+	${X11_Xrandr_LIB}
+	${X11_Xcursor_LIB}
+	${X11_Xxf86vm_LIB}
+	${X11_Xinerama_LIB}
+	${X11_Xi_LIB}
+  
+  ## ${glfw_LIBRARY}
+  
+  #${glfw_LIBRARY_DIRS}
+)
+
+
+#-------------------------------------------------------------------------------
+# Cuda dependencies
+#-------------------------------------------------------------------------------
+# Create a target to update cuda dependencies
+add_cuda_dependencies_target(update_cuda_deps ON)
+set_property(TARGET update_cuda_deps PROPERTY FOLDER "Support")
