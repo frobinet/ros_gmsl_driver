@@ -34,6 +34,7 @@ public:
 	
 	void WriteToOpenCV(unsigned char*, int, int);
 	void WriteToOpenCV_GPU(unsigned char*, int, int);
+	void WriteToROS(uint8_t* , int , int );
 };
 
 

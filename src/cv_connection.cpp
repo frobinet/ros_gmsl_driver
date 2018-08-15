@@ -28,6 +28,31 @@ OpenCVConnector::OpenCVConnector(std::string topic_name,size_t csiPort,uint32_t 
    ROStimemain = ros::Time::now();
 }
 
+void OpenCVConnector::WriteToROS( uint8_t* buffer, int width, int height) {
+	sensor_msgs::ImagePtr ptr = boost::make_shared<sensor_msgs::Image>();
+    sensor_msgs::Image &img_msg = *ptr; // >> message to be sent
+	 
+    std_msgs::Header header; // empty header
+    header.seq = counter; // user defined counter
+    header.stamp = ros::Time::now(); // time
+		
+	// Formatting directly the message no OpenCV
+	img_msg.header = header;
+	img_msg.height = height;
+	img_msg.width = width;
+	img_msg.encoding = sensor_msgs::image_encodings::RGB8;
+	
+	img_msg.step = width * 3; // 1 Byte per 3 Channels of the RGB format
+	
+	size_t size = img_msg.step * height;
+	//img_msg.data.resize(size);
+	
+	img_msg.data.insert( img_msg.data.begin() , buffer , buffer + size ) ; // Better than copy?
+	//memcpy((char *)( &img_msg.data[0] ) , buffer , size);
+	
+	pub.publish( ptr );
+}
+
 void OpenCVConnector::WriteToOpenCV(unsigned char* buffer, int width, int height) {
 	// See reference here : https://devtalk.nvidia.com/default/topic/1010127/driveworks/how-to-convert-dwimagenvmedia-or-nvmediaimage-to-opencvs-cv-mat-/
 	
