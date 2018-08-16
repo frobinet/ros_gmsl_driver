@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<DRIVEWORKS ver="1.0">
+ <VEHICLE>
+  <PROPERTY Value="1.47" Name="Height"/>
+  <PROPERTY Value="4.87" Name="Length"/>
+  <PROPERTY Value="1.86" Name="Width"/>
+  <PROPERTY Value="0.66" Name="Wheel diameter"/>
+  <PROPERTY Value="1.10" Name="Distance axle to rear bumper"/>
+  <PROPERTY Value="0.92" Name="Distance axle to front bumper"/>
+  <PROPERTY Value="2.85" Name="Wheelbase"/>
+  <PROPERTY Value="1.58" Name="Front axlebase"/>
+  <PROPERTY Value="1.57" Name="Rear axlebase"/>
+  <PROPERTY Name="Steering coefficient" Value="14.8"/>
+ </VEHICLE>
+ 
+ <SENSORS>
+ <CAMERA Type="gmsl" Name="FRONT">
+   <PROPERTY Value="ocam" Name="Model"/>
+   <PROPERTY Value="0 0 0 1" Name="Quaternion"/>
+   <PROPERTY Value="0 0 0" Name="Position"/>
+   <PROPERTY Value="" Name="params"/>
+   <PROPERTY Value="1280" Name="width" Hint="intrinsic"/>
+   <PROPERTY Value="800" Name="height" Hint="intrinsic"/>
+   <PROPERTY Value="-4.3549789743524127e+02 0. 8.4972163699552198e-04 -3.0688850429947717e-07 9.8646419136016904e-10" Name="poly" Hint="intrinsic"/>
+   <PROPERTY Value="6.4150152134086773e+02 3.6848566665900802e+02 2.2511384205608703e+01 1.4440522333124727e+02 2.6063625655992684e+02 4.1887048474964968e+02 4.8806927157127484e+02 3.5265785137321649e+02 1.4985292741344676e+02 3.4545514470207017e+01 3.3582266974159363e+00" Name="invpoly" Hint="intrinsic"/>
+   <PROPERTY Value="6.6500220169389343e+02" Name="cx" Hint="intrinsic"/>
+   <PROPERTY Value="4.6018744750722294e+02" Name="cy" Hint="intrinsic"/>
+   <PROPERTY Value="1.00007" Name="c" Hint="intrinsic"/>
+   <PROPERTY Value="-0.00139143" Name="d" Hint="intrinsic"/>
+   <PROPERTY Value="-0.000412847" Name="e" Hint="intrinsic"/>
+  </CAMERA>
+  
+  <CAMERA Type="gmsl" Name="RIGHT">
+   <PROPERTY Value="ocam" Name="Model"/>
+   <PROPERTY Value="0 0 0 1" Name="Quaternion"/>
+   <PROPERTY Value="0 0 0" Name="Position"/>
+   <PROPERTY Value="" Name="params"/>
+   <PROPERTY Value="1280" Name="width" Hint="intrinsic"/>
+   <PROPERTY Value="800" Name="height" Hint="intrinsic"/>
+   <PROPERTY Value="-4.3549789743524127e+02 0. 8.4972163699552198e-04 -3.0688850429947717e-07 9.8646419136016904e-10" Name="poly" Hint="intrinsic"/>
+   <PROPERTY Value="6.4150152134086773e+02 3.6848566665900802e+02 2.2511384205608703e+01 1.4440522333124727e+02 2.6063625655992684e+02 4.1887048474964968e+02 4.8806927157127484e+02 3.5265785137321649e+02 1.4985292741344676e+02 3.4545514470207017e+01 3.3582266974159363e+00" Name="invpoly" Hint="intrinsic"/>
+   <PROPERTY Value="6.6500220169389343e+02" Name="cx" Hint="intrinsic"/>
+   <PROPERTY Value="4.6018744750722294e+02" Name="cy" Hint="intrinsic"/>
+   <PROPERTY Value="1.00007" Name="c" Hint="intrinsic"/>
+   <PROPERTY Value="-0.00139143" Name="d" Hint="intrinsic"/>
+   <PROPERTY Value="-0.000412847" Name="e" Hint="intrinsic"/>
+  </CAMERA>
+  
+  <CAMERA Type="gmsl" Name="REAR">
+   <PROPERTY Value="ocam" Name="Model"/>
+   <PROPERTY Value="0 0 0 1" Name="Quaternion"/>
+   <PROPERTY Value="0 0 0" Name="Position"/>
+   <PROPERTY Value="" Name="params"/>
+   <PROPERTY Value="1280" Name="width" Hint="intrinsic"/>
+   <PROPERTY Value="800" Name="height" Hint="intrinsic"/>
+   <PROPERTY Value="-4.3549789743524127e+02 0. 8.4972163699552198e-04 -3.0688850429947717e-07 9.8646419136016904e-10" Name="poly" Hint="intrinsic"/>
+   <PROPERTY Value="6.4150152134086773e+02 3.6848566665900802e+02 2.2511384205608703e+01 1.4440522333124727e+02 2.6063625655992684e+02 4.1887048474964968e+02 4.8806927157127484e+02 3.5265785137321649e+02 1.4985292741344676e+02 3.4545514470207017e+01 3.3582266974159363e+00" Name="invpoly" Hint="intrinsic"/>
+   <PROPERTY Value="6.6500220169389343e+02" Name="cx" Hint="intrinsic"/>
+   <PROPERTY Value="4.6018744750722294e+02" Name="cy" Hint="intrinsic"/>
+   <PROPERTY Value="1.00007" Name="c" Hint="intrinsic"/>
+   <PROPERTY Value="-0.00139143" Name="d" Hint="intrinsic"/>
+   <PROPERTY Value="-0.000412847" Name="e" Hint="intrinsic"/>
+  </CAMERA>
+  
+    <CAMERA Type="gmsl" Name="LEFT">
+   <PROPERTY Value="ocam" Name="Model"/>
+   <PROPERTY Value="0 0 0 1" Name="Quaternion"/>
+   <PROPERTY Value="0 0 0" Name="Position"/>
+   <PROPERTY Value="" Name="params"/>
+   <PROPERTY Value="1280" Name="width" Hint="intrinsic"/>
+   <PROPERTY Value="800" Name="height" Hint="intrinsic"/>
+   <PROPERTY Value="-4.3549789743524127e+02 0. 8.4972163699552198e-04 -3.0688850429947717e-07 9.8646419136016904e-10" Name="poly" Hint="intrinsic"/>
+   <PROPERTY Value="6.4150152134086773e+02 3.6848566665900802e+02 2.2511384205608703e+01 1.4440522333124727e+02 2.6063625655992684e+02 4.1887048474964968e+02 4.8806927157127484e+02 3.5265785137321649e+02 1.4985292741344676e+02 3.4545514470207017e+01 3.3582266974159363e+00" Name="invpoly" Hint="intrinsic"/>
+   <PROPERTY Value="6.6500220169389343e+02" Name="cx" Hint="intrinsic"/>
+   <PROPERTY Value="4.6018744750722294e+02" Name="cy" Hint="intrinsic"/>
+   <PROPERTY Value="1.00007" Name="c" Hint="intrinsic"/>
+   <PROPERTY Value="-0.00139143" Name="d" Hint="intrinsic"/>
+   <PROPERTY Value="-0.000412847" Name="e" Hint="intrinsic"/>
+  </CAMERA>
+  
+  
+ </SENSORS>
+</DRIVEWORKS>

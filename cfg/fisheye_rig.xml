@@ -10,6 +10,7 @@
   <PROPERTY Value="0.68" Name="Wheel diameter"/>
   <PROPERTY Value="1.1091" Name="Distance axle to rear bumper"/>
   <PROPERTY Value="0.912" Name="Distance axle to front bumper"/>
+  <PROPERTY Value="1.0" Name="Steering coefficient`"/>
  </VEHICLE>
  <SENSORS>
   <CAMERA Type="gmsl" Name="FRONT">

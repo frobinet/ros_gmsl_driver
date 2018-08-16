@@ -96,6 +96,7 @@ uint32_t g_numCameras;
 //GridData_t g_grid;
 
 std::vector<std::vector<dwImageCUDA*>> g_frameRGBAPtr;
+dwColorCorrectHandle_t colorcorector = DW_NULL_HANDLE;
 
 // combine by camera sensor, which might have camera siblings
 struct Camera {
@@ -394,6 +395,26 @@ int main(int argc, const char **argv)
 			g_run = false;
 		}
 	}
+	/// Color corrector and, rectification??
+	dwRigConfigurationHandle_t rigConfig = DW_NULL_HANDLE;
+    result = dwRigConfiguration_initializeFromFile(&rigConfig, sdk, (const char *) "/home/nvidia/catkin_ws/src/ros_gmsl_driver/cfg/wwdc_rig.xml" );
+    if (result != DW_SUCCESS) {
+        std::cerr << "Cannot init rig configuration from file: " << dwGetStatusName(result) << std::endl;
+        exit(1);
+    }
+	
+	dwImageProperties cameraImageProperties;
+	dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE, cameraSensor[0].sensor);
+	
+	//dwColorCorrectHandle_t colorcorector = DW_NULL_HANDLE;
+    dwColorCorrectParameters ccParams{};
+    ccParams.cameraWidth = cameraImageProperties.width;
+    ccParams.cameraHeight = cameraImageProperties.height;
+    result = dwColorCorrect_initializeFromRig(&colorcorector, sdk, rigConfig, &ccParams);
+    if (result != DW_SUCCESS) {
+        std::cerr << "Cannot init color correct object: " << dwGetStatusName(result) << std::endl;
+        g_run = false;
+    }
 	
 		
 	// Now we will run separate threads for each camera
@@ -440,7 +461,6 @@ int main(int argc, const char **argv)
 		
 		for (size_t csiPort = 0; csiPort < cameraSensor.size(); csiPort++) {
 			for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor[csiPort].numSiblings ;  cameraIdx++) {
-			//for (uint32_t cameraIdx = csiPort*cameraSensor[csiPort].numSiblings; cameraIdx < csiPort*cameraSensor[csiPort].numSiblings + cameraSensor[csiPort].numSiblings ; cameraIdx++){
 				if (!g_run) {
 					break;
 				}
@@ -459,7 +479,6 @@ int main(int argc, const char **argv)
 				
 				// Send over ROS network
 				cv_connectors[csiPort][cameraIdx]->WriteToROS( m_rgbCPU[csiPort][cameraIdx]->data[0] , (int) m_rgbCPU[csiPort][cameraIdx]->prop.width, (int) m_rgbCPU[csiPort][cameraIdx]->prop.height);
-						
 				
 				// now that we are done with CPU image, we can return the dwImageCPU to the streamer, which is the owner of it
 				result = dwImageStreamer_returnReceivedCPU(m_rgbCPU[csiPort][cameraIdx], m_streamerCPU2CUDA[csiPort]);
@@ -714,7 +733,7 @@ dwStatus captureCamera(dwImageCUDA *frameCUDArgba,
 			dwSensorHandle_t cameraSensor,
 			uint32_t sibling,
 			dwImageFormatConverterHandle_t yuv2rgba,
-			dwImageStreamerHandle_t nvm2CUDA_)
+			dwImageStreamerHandle_t nvm2CUDA_ )
 {
 	dwCameraFrameHandle_t frameHandle;
 	dwImageNvMedia *frameNVMyuv = nullptr;
@@ -746,10 +765,13 @@ dwStatus captureCamera(dwImageCUDA *frameCUDArgba,
 	} */
 	
 	///// Color correct here?
-	
+	result = dwColorCorrect_correctByReferenceView(frameCUDAyuv, sibling, 1.0, colorcorector);
+	if (result != DW_SUCCESS) {
+		std::cout << "Failed to correct color " << dwGetStatusName(result) << std::endl;
+		return result;
+	}
 	
 	///////
-	
 	
 	//std::cout<<"frameCUDArgba->prop.width "<<frameCUDArgba->prop.width<< "  frameCUDArgba->prop.height "<<frameCUDArgba->prop.height<<std::endl;
 	//std::cout<<"frameCUDAyuv->prop.width "<<frameCUDAyuv->prop.width<< "   frameCUDAyuv->prop.height "<<frameCUDAyuv->prop.height<<std::endl;
