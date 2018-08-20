@@ -73,6 +73,6 @@ target_link_libraries(${NODE_NAME}
   GLESv2
   EGL
   drm
-  ${CUDA_LIBRARY}
+  ${CUDA_LIBRARIES}
   ${OpenCV_LIBS}
 )
