@@ -17,7 +17,7 @@
 												# E.g. you should NOT connect 3 cameras on port AB on slots 1,2 and 3, because you are skipping slot 0. 
 												#         ALWAYS connect cameras in order 0,1,2.... in every port. This driver assumes cameras are connected in order.
 	# Nodes
-	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"> 
+	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask) --type-ab=ar0231-rccb-ss3322"> 
 		# Parameters
 		<param name="img_compressed" type="bool" value="false" />
 		<param name="JPEG_quality" type="int" value="65" />

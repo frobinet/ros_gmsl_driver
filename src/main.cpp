@@ -83,9 +83,9 @@ timepoint_t m_lastRunIterationTime;
 
 ProgramArguments g_arguments(
     { 
-        ProgramArguments::Option_t("type-ab", "ar0231-rccb"),
-        ProgramArguments::Option_t("type-cd", "ar0231-rccb"),
-        ProgramArguments::Option_t("type-ef", "ar0231-rccb"),
+        ProgramArguments::Option_t("type-ab", "ar0231-rccb-ss3322"),
+        ProgramArguments::Option_t("type-cd", "ar0231-rccb-ss3322"),
+        ProgramArguments::Option_t("type-ef", "ar0231-rccb-ss3322"),
         ProgramArguments::Option_t("selector-mask", "1111"),
         ProgramArguments::Option_t("slave", "0"),
         ProgramArguments::Option_t("fifo-size", "3"),
