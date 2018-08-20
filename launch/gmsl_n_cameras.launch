@@ -10,7 +10,7 @@
      that camera's group number will be used for the next topic
 -->
 
-	<node name="gmsl_n_cameras" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask)"/> 
+	<node name="gmsl_n_cameras_node" pkg="gmsl_n_cameras" type="gmsl_n_cameras_node"  output="screen" args="--selector-mask=$(arg selector-mask) --type-ab=ar0231-rccb-ss3322"/> 
 
 
 </launch>
