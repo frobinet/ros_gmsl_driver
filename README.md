@@ -1,6 +1,8 @@
 #  ros_gmsl_driver
 A ROS driver for GMSL cameras on [Drive PX platform](https://www.nvidia.com/en-us/self-driving-cars/drive-platform/)
 
+Now working on Driveworks 5.0.10 thanks to [xbasti07x](https://github.com/xbasti07x)
+
 ## Performance
 * JPEG images compression: tested with 7 cameras giving 30FPS with 4MB/s each camera of network bandwith usage. This is ideal for loging JPEGs on a separate computer on same network as Drive PX
 * Raw images 1920x1208px: tested with 4 cameras giving ~15FPS on same Tegra as driver
@@ -13,6 +15,7 @@ A ROS driver for GMSL cameras on [Drive PX platform](https://www.nvidia.com/en-u
 
 ### Requirements
 
+* Driveworks5.0.10
 * Ubuntu 16 LTS
 * ROS kinetic
 * OpenCV 3.4 for Opencv4CUDA branch
