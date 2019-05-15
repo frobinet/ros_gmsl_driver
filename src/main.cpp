@@ -86,7 +86,7 @@ struct Camera {
     uint32_t width;
     uint32_t height;
     dwImageStreamerHandle_t streamer; // different streamers to support different resolutions
-    dwImageFormatConverterHandle_t yuv2rgba;
+    //dwImageFormatConverterHandle_t yuv2rgba;
     std::queue<dwImageNvMedia *> rgbaPool;
 	std::queue<uint8_t*> jpegPool;
 	std::vector< NvMediaIJPE * > JPEGEncoders; 
@@ -115,7 +115,7 @@ void initSensors(std::vector<Camera> *cameras,
 dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t*,
                        dwSensorHandle_t cameraSensor,
                        uint32_t port, uint32_t sibling,
-                       dwImageFormatConverterHandle_t yuv2rgba, NvMediaIJPE * );
+                       /*dwImageFormatConverterHandle_t yuv2rgba,*/ NvMediaIJPE * , dwContextHandle_t context);
 
 void renderFrame(dwImageStreamerHandle_t streamer, dwRendererHandle_t renderer);
 
@@ -141,32 +141,41 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
     frameRGBA.reserve(numFramesRGBA);
     {
         dwImageProperties cameraImageProperties;
-        dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_PROCESSED_IMAGE,
+        dwSensorCamera_getImageProperties(&cameraImageProperties, DW_CAMERA_OUTPUT_NATIVE_PROCESSED,
                                           cameraSensor->sensor);
         dwImageProperties displayImageProperties = cameraImageProperties;
-        displayImageProperties.pxlFormat         = DW_IMAGE_RGBA;
-        displayImageProperties.planeCount        = 1;
+        displayImageProperties.format         = DW_IMAGE_FORMAT_RGBA_UINT8;
+        displayImageProperties.type           = DW_IMAGE_NVMEDIA;
 
         // format converter
-        result = dwImageFormatConverter_initialize(&cameraSensor->yuv2rgba, DW_IMAGE_NVMEDIA  , sdk);
+        /*result = dwImageFormatConverter_initialize(&cameraSensor->yuv2rgba, DW_IMAGE_NVMEDIA  , sdk);
         if (result != DW_SUCCESS) {
             std::cerr << "Cannot create pixel format converter : yuv->rgba" <<
                          dwGetStatusName(result) <<  std::endl;
             g_run = false;
-        }
+        }*/
 		
         // allocate pool of images RGBA
         for (uint32_t cameraIdx = 0; cameraIdx < cameraSensor->numSiblings; cameraIdx++) {
             for (int32_t k = 0; k < pool_size; k++) {
                 dwImageNvMedia rgba{};
-                result = dwImageNvMedia_create(&rgba, &displayImageProperties, sdk);
+                dwImageNvMedia *rgba_p;
+                dwImageHandle_t rgba_handle;
+                result = dwImage_create(&rgba_handle, displayImageProperties, sdk);
                 if (result != DW_SUCCESS) {
-                    std::cerr << "Cannot create nvmedia image for pool:" <<
+                    std::cerr << "Cannot create rgba_handle for getNvMedia:" <<
                                  dwGetStatusName(result) << std::endl;
                     g_run = false;
                     break;
                 }
-                frameRGBA.push_back(rgba);
+                result = dwImage_getNvMedia(&rgba_p, rgba_handle);
+                if(result != DW_SUCCESS){
+                    std::cerr << "Cannot get a nvmedia image for pool:" <<
+                                dwGetStatusName(result) << std::endl;
+                    g_run = false;
+                    break;
+                }
+                frameRGBA.push_back(*rgba_p);
                 cameraSensor->rgbaPool.push(&frameRGBA.back());
             }
         }
@@ -226,7 +235,7 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
                 // capture, convert to rgba and return it
                 eof = captureCamera(cameraSensor->rgbaPool.front(),cameraSensor->jpegPool.front(),
                                     cameraSensor->sensor, port, cameraIdx,
-                                    cameraSensor->yuv2rgba, cameraSensor->JPEGEncoders[cameraIdx]);
+                                    /*cameraSensor->yuv2rgba,*/ cameraSensor->JPEGEncoders[cameraIdx], sdk);
                 last_frameRGBAPtr[port][cameraIdx] = cameraSensor->rgbaPool.front();
 				cameraSensor->rgbaPool.pop();
 				
@@ -262,17 +271,17 @@ void threadCameraPipeline(Camera* cameraSensor, uint32_t port, dwContextHandle_t
         dwSAL_releaseSensor(&cameraSensor->sensor);
 
         //dwImageStreamer_release(&cameraSensor->streamer);
-        dwImageFormatConverter_release(&cameraSensor->yuv2rgba);
+        //dwImageFormatConverter_release(&cameraSensor->yuv2rgba);
     }
-
+/*
     for (dwImageNvMedia& frame : frameRGBA) {
-        dwStatus result = dwImageNvMedia_destroy(&frame);
+        dwStatus result = dwImage_destroy(&frame);
         if (result != DW_SUCCESS) {
             std::cerr << "Cannot destroy nvmedia: " << dwGetStatusName(result) << std::endl;
             g_run = false;
             break;
         }
-    }
+    }*/
 	for ( auto JPEGEncoder_ : cameraSensor->JPEGEncoders ) {
         NvMediaIJPEDestroy( JPEGEncoder_ );
     }
@@ -547,8 +556,9 @@ void initSdk(dwContextHandle_t *context, WindowBase *window)
 	
     (void)window;
 //#endif
-
-    dwInitialize(context, DW_VERSION, &sdkParams);
+    dwVersion dw_version;
+    dwGetVersion(&dw_version);
+    dwInitialize(context, dw_version, &sdkParams);
 }
 
 //------------------------------------------------------------------------------
@@ -636,7 +646,7 @@ void initSensors(std::vector<Camera> *cameras,
 
                 dwImageProperties cameraImageProperties;
                 dwSensorCamera_getImageProperties(&cameraImageProperties,
-                                                  DW_CAMERA_PROCESSED_IMAGE,
+                                                  DW_CAMERA_OUTPUT_NATIVE_PROCESSED,
                                                   salSensor);
 
                 dwCameraProperties cameraProperties;
@@ -670,7 +680,7 @@ void initSensors(std::vector<Camera> *cameras,
 dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t* jpeg_image,
                        dwSensorHandle_t cameraSensor,
                        uint32_t port, uint32_t sibling,
-                       dwImageFormatConverterHandle_t yuv2rgba,NvMediaIJPE *jpegEncoder)
+                      /* dwImageFormatConverterHandle_t yuv2rgba,*/ NvMediaIJPE *jpegEncoder, dwContextHandle_t context )
 {
     dwCameraFrameHandle_t frameHandle;
     dwImageNvMedia *frameNVMyuv = nullptr;
@@ -682,12 +692,12 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t* jpeg_image,
         return result;
     }
 
-    result = dwSensorCamera_getImageNvMedia(&frameNVMyuv, DW_CAMERA_PROCESSED_IMAGE, frameHandle);
+    result = dwSensorCamera_getImageNvMedia(&frameNVMyuv, DW_CAMERA_OUTPUT_NATIVE_PROCESSED, frameHandle);
     if( result != DW_SUCCESS ){
         std::cout << "dwSensorCamera_getImageNvMedia: " << dwGetStatusName(result) << std::endl;
     }
 
-    result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgba, frameNVMyuv, yuv2rgba);
+    result = dwImageFormatConverter_copyConvertNvMedia(frameNVMrgba, frameNVMyuv, context);
     if( result != DW_SUCCESS ){
         std::cout << "copyConvertNvMedia: " << dwGetStatusName(result) << std::endl;
     }  
@@ -719,16 +729,18 @@ dwStatus captureCamera(dwImageNvMedia *frameNVMrgba,uint8_t* jpeg_image,
 //------------------------------------------------------------------------------
 void renderFrame(dwImageStreamerHandle_t streamer, dwRendererHandle_t renderer)
 {
-    dwImageGL *frameGL = nullptr;
+    dwImageHandle_t frameGL = nullptr;
 
-    if (dwImageStreamer_receiveGL(&frameGL, 60000, streamer) != DW_SUCCESS) {
+    if (dwImageStreamer_consumerReceive(&frameGL, 60000, streamer) != DW_SUCCESS) {
         std::cerr << "did not received GL frame within 30ms" << std::endl;
     } else {
+        dwImageGL *glImage;
+        CHECK_DW_ERROR(dwImage_getGL(&glImage, frameGL));
         // render received texture
-        dwRenderer_renderTexture(frameGL->tex, frameGL->target, renderer);
+        dwRenderer_renderTexture(glImage->tex, glImage->target, renderer);
 
         //std::cout << "received GL: " << frameGL->prop.timestamp_us << std::endl;
-        dwImageStreamer_returnReceivedGL(frameGL, streamer);
+        dwImageStreamer_consumerReturn(&frameGL, streamer);
     }
 }
 
